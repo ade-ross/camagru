@@ -86,7 +86,7 @@ function unfilter(rawScanlines, width, height, bytesPerPixel)
 	}
 	return pixels;
 }
-*.sh text eol=lf
+
 function main()
 {
 	const buf2 = fs.readFileSync('./pixil-frame-00.png');
@@ -171,7 +171,7 @@ function main()
 				onlyConsecutiveIdat = 2;
 		}
 
-		if (chunk.type == "IEND")//check there is only one chunk of type IEND(done) and it is at the end(to-do?)or i just consider as junk anthing that comes after
+		if (chunk.type == "IEND")//check there is only one chunk of type IEND
 		{
 			foundIendChunk = true;
 		}
