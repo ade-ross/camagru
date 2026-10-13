@@ -132,13 +132,13 @@ function main()
 
 	if (!(bitDepth == 8 && (colorType == 2 || colorType == 6)))
 	{
-		console.error("Unsupported PNG") //to-do make a proper error and exit in that case
+		console.error("Unsupported PNG")
 		process.exit(1);
 	}
 
 	if (compressionMethod != 0 || filterMethod != 0 || InterlaceMethod != 0)
 	{
-		console.error("Unsupported PNG") //to-do make a proper error and exit in that case
+		console.error("Unsupported PNG")
 		process.exit(1);
 	}
 	console.log(`imgWidth:  ${imgWidth}, imgHeight: ${imgHeight}, bitDepth: ${bitDepth}, colorType: ${colorType}, InterlaceMethod: ${InterlaceMethod}`);
