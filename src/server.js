@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const router = require('./router');
 const { parseBody } = require('./middleware/bodyParser');
+const { attachSession } = require('./middleware/session');
 
 // register all route groups
 require('./routes/auth').register(router.add);
@@ -33,6 +34,8 @@ function serveStatic(req, res) {
 
 const server = http.createServer(async (req, res) => {
   try {
+    await attachSession(req); // runs before routing, sets req.user
+
     const match = router.match(req.method, req.url);
 
     if (!match) {

@@ -1,7 +1,11 @@
 const crypto = require('crypto');
 const usersModel = require('../models/users');
-const { hashPassword } = require('../lib/hash');
+const sessionsModel = require('../models/sessions');
+
+const { hashPassword, verifyPassword } = require('../lib/hash');
 const { sendConfirmationEmail } = require('../lib/mailer');
+
+const SESSION_DURATION_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
 
 // Very basic, readable validation — good enough for the subject's requirements
 function isValidEmail(email) {
@@ -97,4 +101,56 @@ async function confirm(req, res, params) {
   }
 }
 
-module.exports = { register, confirm };
+async function login(req, res) {
+  const { username, password } = req.body;
+
+  if (!username || !password) {
+    return sendJson(res, 400, { error: 'Missing fields' });
+  }
+
+  try {
+    const user = await usersModel.findByUsername(username);
+    // Same generic error whether the username doesn't exist or the password
+    // is wrong — never reveal which one it was, that's a username-enumeration leak.
+    if (!user) {
+      return sendJson(res, 401, { error: 'Invalid username or password' });
+    }
+
+    const valid = await verifyPassword(password, user.password_hash);
+    if (!valid) {
+      return sendJson(res, 401, { error: 'Invalid username or password' });
+    }
+
+    if (!user.is_confirmed) {
+      return sendJson(res, 403, { error: 'Please confirm your account first' });
+    }
+
+    const sessionId = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + SESSION_DURATION_MS);
+    await sessionsModel.createSession(sessionId, user.id, expiresAt);
+
+    res.setHeader(
+      'Set-Cookie',
+      `session_id=${sessionId}; HttpOnly; Path=/; SameSite=Strict; Max-Age=${SESSION_DURATION_MS / 1000}`
+    );
+    return sendJson(res, 200, { id: user.id, username: user.username });
+  } catch (err) {
+    console.error('Login error:', err);
+    return sendJson(res, 500, { error: 'Something went wrong' });
+  }
+}
+
+async function logout(req, res) {
+  try {
+    if (req.sessionId) {
+      await sessionsModel.deleteSession(req.sessionId);
+    }
+    res.setHeader('Set-Cookie', `session_id=; HttpOnly; Path=/; Max-Age=0`);
+    return sendJson(res, 200, { ok: true });
+  } catch (err) {
+    console.error('Logout error:', err);
+    return sendJson(res, 500, { error: 'Something went wrong' });
+  }
+}
+
+module.exports = { register, confirm, login, logout };
