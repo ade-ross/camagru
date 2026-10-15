@@ -37,6 +37,14 @@ async function findById(id) {
   return rows[0] || null;
 }
 
+async function getPasswordHash(userId) {
+  const { rows } = await db.query(
+    `SELECT password_hash FROM users WHERE id = $1`,
+    [userId]
+  );
+  return rows[0] ? rows[0].password_hash : null;
+}
+
 async function confirmUser(token) {
   const { rows } = await db.query(
     `UPDATE users SET is_confirmed = TRUE, confirm_token = NULL
@@ -89,5 +97,5 @@ async function updateProfile(userId, { username, email, notifyOnComment }) {
 module.exports = {
   createUser, findByUsername, findByEmail, findById,
   confirmUser, setResetToken, findByResetToken,
-  updatePassword, updateProfile,
+  updatePassword, updateProfile, getPasswordHash,
 };

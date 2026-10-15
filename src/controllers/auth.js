@@ -4,22 +4,10 @@ const sessionsModel = require('../models/sessions');
 
 const { hashPassword, verifyPassword } = require('../lib/hash');
 const { sendConfirmationEmail } = require('../lib/mailer');
+const { isValidEmail, isValidUsername, isValidPassword } = require('../lib/validators');
+const { sendJson } = require('../lib/http');
 
 const SESSION_DURATION_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
-
-// Very basic, readable validation — good enough for the subject's requirements
-function isValidEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
-
-function isValidUsername(username) {
-  return /^[a-zA-Z0-9_]{3,20}$/.test(username);
-}
-
-function isValidPassword(password) {
-  // at least 8 chars, one letter, one number — tweak as you like
-  return /^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(password);
-}
 
 async function register(req, res) {
   const { username, email, password } = req.body;
@@ -78,11 +66,6 @@ async function register(req, res) {
   }
 }
 
-function sendJson(res, statusCode, data) {
-  res.writeHead(statusCode, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify(data));
-}
-
 async function confirm(req, res, params) {
   const { token } = params;
 
@@ -111,7 +94,7 @@ async function login(req, res) {
   try {
     const user = await usersModel.findByUsername(username);
     // Same generic error whether the username doesn't exist or the password
-    // is wrong — never reveal which one it was, that's a username-enumeration leak.
+    // is wrong as to never reveal which one it was cause it would be a username enumeration leak
     if (!user) {
       return sendJson(res, 401, { error: 'Invalid username or password' });
     }

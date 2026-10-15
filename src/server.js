@@ -7,8 +7,8 @@ const { attachSession } = require('./middleware/session');
 
 // register all route groups
 require('./routes/auth').register(router.add);
-// require('./routes/users').register(router.add);   // add these as you build them
-// require('./routes/images').register(router.add);
+require('./routes/users').register(router.add);   
+// require('./routes/images').register(router.add); // add these as you build them
 // require('./routes/gallery').register(router.add);
 // require('./routes/comments').register(router.add);
 // require('./routes/likes').register(router.add);

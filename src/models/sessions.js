@@ -23,4 +23,11 @@ async function deleteAllSessionsForUser(userId) {
   await db.query(`DELETE FROM sessions WHERE user_id = $1`, [userId]);
 }
 
-module.exports = { createSession, findValidSession, deleteSession, deleteAllSessionsForUser };
+async function deleteOtherSessions(userId, keepSessionId) {
+  await db.query(
+    `DELETE FROM sessions WHERE user_id = $1 AND id <> $2`,
+    [userId, keepSessionId]
+  );
+}
+
+module.exports = { createSession, findValidSession, deleteSession, deleteAllSessionsForUser, deleteOtherSessions, };
