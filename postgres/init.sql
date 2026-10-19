@@ -1,14 +1,17 @@
 CREATE TABLE users (
-  id                  SERIAL PRIMARY KEY,
-  username            VARCHAR(32) UNIQUE NOT NULL,
-  email               VARCHAR(255) UNIQUE NOT NULL,
-  password_hash       VARCHAR(255) NOT NULL,
-  is_confirmed        BOOLEAN NOT NULL DEFAULT FALSE,
-  confirm_token       VARCHAR(64),
-  reset_token         VARCHAR(64),
-  reset_token_expires TIMESTAMPTZ,
-  notify_on_comment   BOOLEAN NOT NULL DEFAULT TRUE,
-  created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+  id                   SERIAL PRIMARY KEY,
+  username             VARCHAR(32) UNIQUE NOT NULL,
+  email                VARCHAR(255) UNIQUE NOT NULL,
+  pending_email        VARCHAR(255),
+  pending_email_token  VARCHAR(64),
+  ending_email_expires TIMESTAMPTZ,
+  password_hash        VARCHAR(255) NOT NULL,
+  is_confirmed         BOOLEAN NOT NULL DEFAULT FALSE,
+  confirm_token        VARCHAR(64),
+  reset_token          VARCHAR(64),
+  reset_token_expires  TIMESTAMPTZ,
+  notify_on_comment    BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TABLE sessions (

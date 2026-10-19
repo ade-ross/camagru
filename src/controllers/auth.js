@@ -2,12 +2,13 @@ const crypto = require('crypto');
 const usersModel = require('../models/users');
 const sessionsModel = require('../models/sessions');
 
-const { hashPassword, verifyPassword } = require('../lib/hash');
-const { sendConfirmationEmail } = require('../lib/mailer');
-const { isValidEmail, isValidUsername, isValidPassword } = require('../lib/validators');
 const { sendJson } = require('../lib/http');
+const { hashPassword, verifyPassword } = require('../lib/hash');
+const { sendConfirmationEmail, sendResetEmail } = require('../lib/mailer');
+const { isValidEmail, isValidUsername, isValidPassword } = require('../lib/validators');
 
 const SESSION_DURATION_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
+const RESET_DURATION_MS = 1000 * 60 * 60; // 1 hour
 
 async function register(req, res) {
   const { username, email, password } = req.body;
@@ -136,4 +137,57 @@ async function logout(req, res) {
   }
 }
 
-module.exports = { register, confirm, login, logout };
+async function forgotPassword(req, res) {
+  const { email } = req.body;
+  if (!isValidEmail(email)) {
+    return sendJson(res, 400, { error: 'Invalid email' });
+  }
+
+  try {
+    const user = await usersModel.findByEmail(email);
+    if (user && user.is_confirmed) {
+      const token = crypto.randomBytes(32).toString('hex');
+      await usersModel.setResetToken(user.id, token, new Date(Date.now() + RESET_DURATION_MS));
+      await sendResetEmail(email, token);
+    }
+    // same answer whether the email exists or not (no account enumeration)
+    return sendJson(res, 200, { message: 'If that email exists, a reset link was sent' });
+  } catch (err) {
+    console.error('ForgotPassword error:', err);
+    return sendJson(res, 500, { error: 'Something went wrong' });
+  }
+}
+
+async function resetPassword(req, res, params) {
+  const { password } = req.body;
+  if (!isValidPassword(password)) {
+    return sendJson(res, 400, { error: 'Password too weak' });
+  }
+
+  try {
+    const user = await usersModel.findByResetToken(params.token);
+    if (!user) {
+      return sendJson(res, 400, { error: 'Invalid or expired reset link' });
+    }
+    const hash = await hashPassword(password);
+    await usersModel.updatePassword(user.id, hash); // also clears the reset token
+    await sessionsModel.deleteAllSessionsForUser(user.id);
+    return sendJson(res, 200, { ok: true });
+  } catch (err) {
+    console.error('ResetPassword error:', err);
+    return sendJson(res, 500, { error: 'Something went wrong' });
+  }
+}
+
+// the link in the email is a GET, so send the browser to a real page
+function resetPasswordPage(req, res, params) {
+  res.writeHead(302, {
+    Location: `/reset-password.html?token=${encodeURIComponent(params.token)}`,
+  });
+  res.end();
+}
+
+module.exports = {
+  register, confirm, login, logout,
+  forgotPassword, resetPassword, resetPasswordPage,
+};

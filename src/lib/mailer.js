@@ -45,4 +45,15 @@ async function sendCommentNotification(to, imageUrl) {
   });
 }
 
-module.exports = { sendConfirmationEmail, sendResetEmail, sendCommentNotification };
+async function sendEmailChangeEmail(to, token) {
+  const link = `${process.env.APP_URL}/confirm-email/${token}`;
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM,
+    to,
+    subject: 'Confirm your new Camagru email',
+    text: `Confirm your new email address: ${link}`,
+    html: `<p>Confirm your new email address: <a href="${link}">${link}</a></p>`,
+  });
+}
+
+module.exports = { sendConfirmationEmail, sendResetEmail, sendCommentNotification, sendEmailChangeEmail };
