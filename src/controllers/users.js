@@ -21,7 +21,7 @@ async function updateMe(req, res) {
 
   const { username, email, notifyOnComment, currentPassword, newPassword } = req.body;
 
-  // 1. Validate only the fields that were actually sent
+  // Validate only the fields that were actually sent
   if (username !== undefined && !isValidUsername(username)) {
     return sendJson(res, 400, { error: 'Invalid username' });
   }
@@ -36,7 +36,7 @@ async function updateMe(req, res) {
   }
 
   try {
-    // 2. Uniqueness: taken by someone ELSE (your own current value is fine)
+    // Uniqueness
     if (username !== undefined) {
       const existing = await usersModel.findByUsername(username);
       if (existing && existing.id !== req.user.id) {
@@ -50,7 +50,7 @@ async function updateMe(req, res) {
       }
     }
 
-    // 3. Password change requires proving you know the current one
+    // Password change requires proving you know the current one
     let newHash = null;
     if (newPassword !== undefined) {
       if (typeof currentPassword !== 'string') {
@@ -64,7 +64,6 @@ async function updateMe(req, res) {
       newHash = await hashPassword(newPassword);
     }
 
-    // 4. Apply changes
     const updated = await usersModel.updateProfile(req.user.id, {
       username,
       email,

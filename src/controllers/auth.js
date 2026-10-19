@@ -12,7 +12,6 @@ const SESSION_DURATION_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
 async function register(req, res) {
   const { username, email, password } = req.body;
 
-  // 1. Validate input shape/rules — before touching the DB at all
   if (!username || !email || !password) {
     return sendJson(res, 400, { error: 'Missing fields' });
   }
@@ -27,7 +26,6 @@ async function register(req, res) {
   }
 
   try {
-    // 2. Check uniqueness ourselves too (nicer error than a raw DB constraint failure)
     const existingByUsername = await usersModel.findByUsername(username);
     if (existingByUsername) {
       return sendJson(res, 409, { error: 'Username already taken' });
@@ -37,13 +35,11 @@ async function register(req, res) {
       return sendJson(res, 409, { error: 'Email already registered' });
     }
 
-    // 3. Hash the password — never store it plain
     const passwordHash = await hashPassword(password);
 
-    // 4. Generate a random, unguessable confirmation token
     const confirmToken = crypto.randomBytes(32).toString('hex');
 
-    // 5. Insert the user (is_confirmed defaults to FALSE from the schema)
+    // Insert the user (is_confirmed defaults to FALSE from the schema)
     const user = await usersModel.createUser({
       username,
       email,
@@ -51,10 +47,8 @@ async function register(req, res) {
       confirmToken,
     });
 
-    // 6. Email them the confirmation link
     await sendConfirmationEmail(email, confirmToken);
 
-    // 7. Respond — don't leak the hash or token back to the client
     return sendJson(res, 201, {
       id: user.id,
       username: user.username,
