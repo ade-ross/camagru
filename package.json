@@ -8,7 +8,8 @@
   },
   "dependencies": {
     "nodemailer": "^6.9.0",
-    "pg": "^8.13.0"
+    "pg": "^8.13.0",
+    "node-gd": "^3.0.0"
   },
   "engines": {
     "node": ">=22"

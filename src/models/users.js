@@ -94,8 +94,39 @@ async function updateProfile(userId, { username, email, notifyOnComment }) {
   return rows[0];
 }
 
+async function setPendingEmail(userId, email, token, expiresAt) {
+  await db.query(
+    `UPDATE users
+     SET pending_email = $1, pending_email_token = $2, pending_email_expires = $3
+     WHERE id = $4`,
+    [email, token, expiresAt, userId]
+  );
+}
+
+async function clearPendingEmail(userId) {
+  await db.query(
+    `UPDATE users
+     SET pending_email = NULL, pending_email_token = NULL, pending_email_expires = NULL
+     WHERE id = $1`,
+    [userId]
+  );
+}
+
+async function confirmPendingEmail(token) {
+  const { rows } = await db.query(
+    `UPDATE users
+     SET email = pending_email, pending_email = NULL,
+         pending_email_token = NULL, pending_email_expires = NULL
+     WHERE pending_email_token = $1 AND pending_email_expires > now()
+     RETURNING id`,
+    [token]
+  );
+  return rows[0] || null;
+}
+
 module.exports = {
   createUser, findByUsername, findByEmail, findById,
   confirmUser, setResetToken, findByResetToken,
   updatePassword, updateProfile, getPasswordHash,
+  setPendingEmail, confirmPendingEmail, clearPendingEmail,
 };

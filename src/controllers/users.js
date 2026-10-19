@@ -1,9 +1,11 @@
 const usersModel = require('../models/users');
 const sessionsModel = require('../models/sessions');
+const crypto = require('crypto');
 const { hashPassword, verifyPassword } = require('../lib/hash');
 const { isValidEmail, isValidUsername, isValidPassword } = require('../lib/validators');
 const { requireAuth } = require('../middleware/session');
 const { sendJson } = require('../lib/http');
+const { sendEmailChangeEmail } = require('../lib/mailer');
 
 async function getMe(req, res) {
   if (!requireAuth(req, res)) return;
@@ -64,18 +66,32 @@ async function updateMe(req, res) {
       newHash = await hashPassword(newPassword);
     }
 
+    const current = await usersModel.findById(req.user.id);
+    const emailChanged = email !== undefined && email !== current.email;
+
     const updated = await usersModel.updateProfile(req.user.id, {
       username,
-      email,
       notifyOnComment,
     });
+
+    const emailReverted = email !== undefined && email === current.email;
+
+    if (emailChanged) {
+      const token = crypto.randomBytes(32).toString('hex');
+      const expires = new Date(Date.now() + 1000 * 60 * 60); // 1 hour
+      await usersModel.setPendingEmail(req.user.id, email, token, expires);
+      await sendEmailChangeEmail(email, token);
+    } else if (emailReverted) {
+      await usersModel.clearPendingEmail(req.user.id);
+    }
+
     if (newHash) {
       await usersModel.updatePassword(req.user.id, newHash);
       // log out every other device, keep the one making this request
       await sessionsModel.deleteOtherSessions(req.user.id, req.sessionId);
     }
 
-    return sendJson(res, 200, updated);
+    return sendJson(res, 200, { ...updated, emailPending: emailChanged });
   } catch (err) {
     if (err.code === '23505') {
       // two requests raced past the checks; the DB constraint caught it
@@ -86,4 +102,21 @@ async function updateMe(req, res) {
   }
 }
 
-module.exports = { getMe, updateMe };
+async function confirmEmail(req, res, params) {
+  try {
+    const user = await usersModel.confirmPendingEmail(params.token);
+    if (!user) {
+      return sendJson(res, 400, { error: 'Invalid or already-used link' });
+    }
+    res.writeHead(302, { Location: '/settings.html?emailConfirmed=1' });
+    res.end();
+  } catch (err) {
+    if (err.code === '23505') {
+      return sendJson(res, 409, { error: 'That email was taken in the meantime' });
+    }
+    console.error('ConfirmEmail error:', err);
+    return sendJson(res, 500, { error: 'Something went wrong' });
+  }
+}
+
+module.exports = { getMe, updateMe, confirmEmail };
