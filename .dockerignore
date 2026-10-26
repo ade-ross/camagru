@@ -1,0 +1,10 @@
+# Never copy these into the image: node_modules is installed fresh inside it,
+# .env is passed at runtime by docker-compose (env_file), the rest is local stuff.
+node_modules
+.git
+.env
+cookies*.txt
+prova.html
+pngdecoder
+dirstrct.txt
+uploads

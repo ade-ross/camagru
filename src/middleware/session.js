@@ -1,4 +1,5 @@
 const sessionsModel = require('../models/sessions');
+const { sendJson } = require('../lib/http');
 
 async function attachSession(req) {
   const cookieHeader = req.headers.cookie || '';
@@ -22,8 +23,7 @@ async function attachSession(req) {
 
 function requireAuth(req, res) {
   if (!req.user) {
-    res.writeHead(401, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Not authenticated' }));
+    sendJson(res, 401, { error: 'Not authenticated' });
     return false;
   }
   return true;

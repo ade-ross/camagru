@@ -2,7 +2,7 @@ const usersModel = require('../models/users');
 const sessionsModel = require('../models/sessions');
 const crypto = require('crypto');
 const { hashPassword, verifyPassword } = require('../lib/hash');
-const { isValidEmail, isValidUsername, isValidPassword } = require('../lib/validators');
+const { normalizeEmail, isValidEmail, isValidUsername, isValidPassword } = require('../lib/validators');
 const { requireAuth } = require('../middleware/session');
 const { sendJson } = require('../lib/http');
 const { sendEmailChangeEmail } = require('../lib/mailer');
@@ -21,7 +21,8 @@ async function getMe(req, res) {
 async function updateMe(req, res) {
   if (!requireAuth(req, res)) return;
 
-  const { username, email, notifyOnComment, currentPassword, newPassword } = req.body;
+  const { username, notifyOnComment, currentPassword, newPassword } = req.body;
+  const email = normalizeEmail(req.body.email);
 
   // Validate only the fields that were actually sent
   if (username !== undefined && !isValidUsername(username)) {
@@ -38,6 +39,22 @@ async function updateMe(req, res) {
   }
 
   try {
+    const current = await usersModel.findById(req.user.id);
+    const emailChanged = email !== undefined && email !== current.email;
+    const emailReverted = email !== undefined && email === current.email;
+
+    // Changing the email or the password needs the current password: someone who
+    // only stole the session cookie must not be able to take over the account.
+    if (emailChanged || newPassword !== undefined) {
+      if (typeof currentPassword !== 'string') {
+        return sendJson(res, 400, { error: 'Current password required' });
+      }
+      const storedHash = await usersModel.getPasswordHash(req.user.id);
+      if (!(await verifyPassword(currentPassword, storedHash))) {
+        return sendJson(res, 403, { error: 'Current password is incorrect' });
+      }
+    }
+
     // Uniqueness
     if (username !== undefined) {
       const existing = await usersModel.findByUsername(username);
@@ -45,36 +62,13 @@ async function updateMe(req, res) {
         return sendJson(res, 409, { error: 'Username already taken' });
       }
     }
-    if (email !== undefined) {
-      const existing = await usersModel.findByEmail(email);
-      if (existing && existing.id !== req.user.id) {
-        return sendJson(res, 409, { error: 'Email already registered' });
-      }
+    if (emailChanged && await usersModel.findByEmail(email)) {
+      return sendJson(res, 409, { error: 'Email already registered' });
     }
 
-    // Password change requires proving you know the current one
-    let newHash = null;
-    if (newPassword !== undefined) {
-      if (typeof currentPassword !== 'string') {
-        return sendJson(res, 400, { error: 'Current password required' });
-      }
-      const storedHash = await usersModel.getPasswordHash(req.user.id);
-      const ok = await verifyPassword(currentPassword, storedHash);
-      if (!ok) {
-        return sendJson(res, 401, { error: 'Current password is incorrect' });
-      }
-      newHash = await hashPassword(newPassword);
-    }
+    const newHash = newPassword !== undefined ? await hashPassword(newPassword) : null;
 
-    const current = await usersModel.findById(req.user.id);
-    const emailChanged = email !== undefined && email !== current.email;
-
-    const updated = await usersModel.updateProfile(req.user.id, {
-      username,
-      notifyOnComment,
-    });
-
-    const emailReverted = email !== undefined && email === current.email;
+    const updated = await usersModel.updateProfile(req.user.id, { username, notifyOnComment });
 
     if (emailChanged) {
       const token = crypto.randomBytes(32).toString('hex');
@@ -102,14 +96,14 @@ async function updateMe(req, res) {
   }
 }
 
+// POST /api/confirm-email/:token, called by confirm-email.html (the page the email links to)
 async function confirmEmail(req, res, params) {
   try {
     const user = await usersModel.confirmPendingEmail(params.token);
     if (!user) {
-      return sendJson(res, 400, { error: 'Invalid or already-used link' });
+      return sendJson(res, 400, { error: 'Invalid or expired link' });
     }
-    res.writeHead(302, { Location: '/settings.html?emailConfirmed=1' });
-    res.end();
+    return sendJson(res, 200, { ok: true });
   } catch (err) {
     if (err.code === '23505') {
       return sendJson(res, 409, { error: 'That email was taken in the meantime' });

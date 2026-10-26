@@ -12,9 +12,10 @@ async function createUser({ username, email, passwordHash, confirmToken }) {
   return rows[0];
 }
 
+// Case-insensitive: "Alice" finds "alice". Uses the LOWER(username) index from init.sql.
 async function findByUsername(username) {
   const { rows } = await db.query(
-    `SELECT * FROM users WHERE username = $1`,
+    `SELECT * FROM users WHERE LOWER(username) = LOWER($1)`,
     [username]
   );
   return rows[0] || null;
@@ -30,7 +31,7 @@ async function findByEmail(email) {
 
 async function findById(id) {
   const { rows } = await db.query(
-    `SELECT id, username, email, notify_on_comment, is_confirmed, created_at
+    `SELECT id, username, email, pending_email, notify_on_comment, is_confirmed, created_at
      FROM users WHERE id = $1`,
     [id]
   );
@@ -81,17 +82,23 @@ async function updatePassword(userId, passwordHash) {
   );
 }
 
-async function updateProfile(userId, { username, email, notifyOnComment }) {
+// No email here on purpose: an email only changes through the confirmation
+// link (setPendingEmail -> confirmPendingEmail), so nothing can skip that step.
+async function updateProfile(userId, { username, notifyOnComment }) {
   const { rows } = await db.query(
     `UPDATE users
      SET username = COALESCE($1, username),
-         email = COALESCE($2, email),
-         notify_on_comment = COALESCE($3, notify_on_comment)
-     WHERE id = $4
+         notify_on_comment = COALESCE($2, notify_on_comment)
+     WHERE id = $3
      RETURNING id, username, email, notify_on_comment`,
-    [username, email, notifyOnComment, userId]
+    [username, notifyOnComment, userId]
   );
   return rows[0];
+}
+
+// Used to undo a registration whose confirmation email could not be sent
+async function deleteUser(userId) {
+  await db.query(`DELETE FROM users WHERE id = $1`, [userId]);
 }
 
 async function setPendingEmail(userId, email, token, expiresAt) {
@@ -128,5 +135,5 @@ module.exports = {
   createUser, findByUsername, findByEmail, findById,
   confirmUser, setResetToken, findByResetToken,
   updatePassword, updateProfile, getPasswordHash,
-  setPendingEmail, confirmPendingEmail, clearPendingEmail,
+  setPendingEmail, confirmPendingEmail, clearPendingEmail, deleteUser,
 };

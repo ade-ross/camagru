@@ -5,13 +5,14 @@ const sessionsModel = require('../models/sessions');
 const { sendJson } = require('../lib/http');
 const { hashPassword, verifyPassword } = require('../lib/hash');
 const { sendConfirmationEmail, sendResetEmail } = require('../lib/mailer');
-const { isValidEmail, isValidUsername, isValidPassword } = require('../lib/validators');
+const { normalizeEmail, isValidEmail, isValidUsername, isValidPassword } = require('../lib/validators');
 
 const SESSION_DURATION_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
 const RESET_DURATION_MS = 1000 * 60 * 60; // 1 hour
 
 async function register(req, res) {
-  const { username, email, password } = req.body;
+  const { username, password } = req.body;
+  const email = normalizeEmail(req.body.email);
 
   if (!username || !email || !password) {
     return sendJson(res, 400, { error: 'Missing fields' });
@@ -48,7 +49,15 @@ async function register(req, res) {
       confirmToken,
     });
 
-    await sendConfirmationEmail(email, confirmToken);
+    try {
+      await sendConfirmationEmail(email, confirmToken);
+    } catch (err) {
+      // Without this email the account could never be confirmed, and the
+      // username and email would stay taken forever: undo the registration.
+      console.error('Register: confirmation email failed:', err);
+      await usersModel.deleteUser(user.id);
+      return sendJson(res, 503, { error: 'Could not send the confirmation email, please try again later' });
+    }
 
     return sendJson(res, 201, {
       id: user.id,
@@ -56,11 +65,16 @@ async function register(req, res) {
       email: user.email,
     });
   } catch (err) {
+    if (err.code === '23505') {
+      // two registrations raced past the checks above; the DB constraint caught it
+      return sendJson(res, 409, { error: 'Username or email already taken' });
+    }
     console.error('Register error:', err); // server-side log only
     return sendJson(res, 500, { error: 'Something went wrong' });
   }
 }
 
+// POST /api/confirm/:token, called by confirm.html (the page the email links to)
 async function confirm(req, res, params) {
   const { token } = params;
 
@@ -69,10 +83,7 @@ async function confirm(req, res, params) {
     if (!user) {
       return sendJson(res, 400, { error: 'Invalid or already-used confirmation link' });
     }
-    // Redirect to a login page rather than returning raw JSON,
-    // since this link is opened directly by clicking an email
-    res.writeHead(302, { Location: '/login.html?confirmed=1' });
-    res.end();
+    return sendJson(res, 200, { ok: true });
   } catch (err) {
     console.error('Confirm error:', err);
     return sendJson(res, 500, { error: 'Something went wrong' });
@@ -82,7 +93,8 @@ async function confirm(req, res, params) {
 async function login(req, res) {
   const { username, password } = req.body;
 
-  if (!username || !password) {
+  // typeof: a JSON body can send {"password": {}}, and scrypt would throw on it (500)
+  if (typeof username !== 'string' || typeof password !== 'string' || !username || !password) {
     return sendJson(res, 400, { error: 'Missing fields' });
   }
 
@@ -103,6 +115,7 @@ async function login(req, res) {
       return sendJson(res, 403, { error: 'Please confirm your account first' });
     }
 
+    await sessionsModel.deleteExpired();
     const sessionId = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + SESSION_DURATION_MS);
     await sessionsModel.createSession(sessionId, user.id, expiresAt);
@@ -132,7 +145,7 @@ async function logout(req, res) {
 }
 
 async function forgotPassword(req, res) {
-  const { email } = req.body;
+  const email = normalizeEmail(req.body.email);
   if (!isValidEmail(email)) {
     return sendJson(res, 400, { error: 'Invalid email' });
   }
@@ -173,15 +186,7 @@ async function resetPassword(req, res, params) {
   }
 }
 
-// the link in the email is a GET, so send the browser to a real page
-function resetPasswordPage(req, res, params) {
-  res.writeHead(302, {
-    Location: `/reset-password.html?token=${encodeURIComponent(params.token)}`,
-  });
-  res.end();
-}
-
 module.exports = {
   register, confirm, login, logout,
-  forgotPassword, resetPassword, resetPasswordPage,
+  forgotPassword, resetPassword,
 };

@@ -5,7 +5,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /usr/app
-COPY package.json .
-RUN npm install --quiet
+COPY package*.json ./
+RUN npm ci
 COPY . .
 CMD ["node", "src/server.js"]

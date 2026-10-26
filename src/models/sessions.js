@@ -30,4 +30,12 @@ async function deleteOtherSessions(userId, keepSessionId) {
   );
 }
 
-module.exports = { createSession, findValidSession, deleteSession, deleteAllSessionsForUser, deleteOtherSessions, };
+// called on each login: expired sessions are useless rows
+async function deleteExpired() {
+  await db.query(`DELETE FROM sessions WHERE expires_at <= now()`);
+}
+
+module.exports = {
+  createSession, findValidSession, deleteSession,
+  deleteAllSessionsForUser, deleteOtherSessions, deleteExpired,
+};
