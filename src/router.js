@@ -1,6 +1,6 @@
 const routes = [];
 
-function add(method, pattern, handler) {
+function add(method, pattern, handler, options = {}) {
   // turn "/confirm/:token" into a regex that captures the :token part
   const paramNames = [];
   const regexStr = pattern
@@ -14,7 +14,7 @@ function add(method, pattern, handler) {
     })
     .join('/');
   const regex = new RegExp(`^${regexStr}$`);
-  routes.push({ method, regex, paramNames, handler });
+  routes.push({ method, regex, paramNames, handler, auth: options.auth === true });
 }
 
 function match(method, url) {
@@ -27,7 +27,7 @@ function match(method, url) {
       route.paramNames.forEach((name, i) => {
         params[name] = result[i + 1];
       });
-      return { handler: route.handler, params };
+      return { handler: route.handler, params, auth: route.auth };
     }
   }
   return null;

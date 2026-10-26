@@ -3,7 +3,7 @@ const http = require('http');
 const path = require('path');
 const router = require('./router');
 const { parseBody } = require('./middleware/bodyParser');
-const { attachSession } = require('./middleware/session');
+const { attachSession, requireAuth } = require('./middleware/session');
 const { sendJson, sendFile } = require('./lib/http');
 
 // Register all route groups
@@ -66,6 +66,11 @@ async function handle(req, res) {
 
   // Only matched routes need the session: static files skip the DB lookup
   await attachSession(req);
+
+  // Routes marked { auth: true } refuse anonymous requests BEFORE their body is
+  // read: only logged-in users can make us read and parse up to 10 MB.
+  // (The controllers still call requireAuth too, as a second line of defense.)
+  if (match.auth && !requireAuth(req, res)) return;
 
   if (req.method === 'POST' || req.method === 'PATCH' || req.method === 'PUT') {
     const limit = req.url.startsWith('/api/images') ? IMAGE_BODY_LIMIT : BODY_LIMIT;
