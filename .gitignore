@@ -49,6 +49,7 @@ certs/
 .DS_Store
 Thumbs.db
 *Zone.Identifier
+CLAUDE.md
 
 # Logs
 logs/
@@ -77,3 +78,4 @@ prova.html
 /pngdecoder
 dirstrct.txt
 cookies*.txt
+docs/
