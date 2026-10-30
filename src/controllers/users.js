@@ -6,6 +6,7 @@ const { normalizeEmail, isValidEmail, isValidUsername, isValidPassword } = requi
 const { requireAuth } = require('../middleware/session');
 const { sendJson } = require('../lib/http');
 const { sendEmailChangeEmail } = require('../lib/mailer');
+const log = require('../lib/log');
 
 async function getMe(req, res) {
   if (!requireAuth(req, res)) return;
@@ -13,7 +14,7 @@ async function getMe(req, res) {
     const user = await usersModel.findById(req.user.id);
     return sendJson(res, 200, user);
   } catch (err) {
-    console.error('GetMe error:', err);
+    log.error('GetMe error:', err);
     return sendJson(res, 500, { error: 'Something went wrong' });
   }
 }
@@ -68,16 +69,24 @@ async function updateMe(req, res) {
 
     const newHash = newPassword !== undefined ? await hashPassword(newPassword) : null;
 
-    const updated = await usersModel.updateProfile(req.user.id, { username, notifyOnComment });
-
+    // The email mail goes out FIRST: if it fails, we answer 503 before any
+    // other field has been saved, so the user never gets a half-done update.
     if (emailChanged) {
       const token = crypto.randomBytes(32).toString('hex');
       const expires = new Date(Date.now() + 1000 * 60 * 60); // 1 hour
       await usersModel.setPendingEmail(req.user.id, email, token, expires);
-      await sendEmailChangeEmail(email, token);
+      try {
+        await sendEmailChangeEmail(email, token);
+      } catch (err) {
+        await usersModel.clearPendingEmail(req.user.id);
+        log.error('UpdateMe: email change mail failed:', err);
+        return sendJson(res, 503, { error: 'Could not send the confirmation email, please try again later' });
+      }
     } else if (emailReverted) {
       await usersModel.clearPendingEmail(req.user.id);
     }
+
+    const updated = await usersModel.updateProfile(req.user.id, { username, notifyOnComment });
 
     if (newHash) {
       await usersModel.updatePassword(req.user.id, newHash);
@@ -91,7 +100,7 @@ async function updateMe(req, res) {
       // two requests raced past the checks; the DB constraint caught it
       return sendJson(res, 409, { error: 'Username or email already taken' });
     }
-    console.error('UpdateMe error:', err);
+    log.error('UpdateMe error:', err);
     return sendJson(res, 500, { error: 'Something went wrong' });
   }
 }
@@ -108,7 +117,7 @@ async function confirmEmail(req, res, params) {
     if (err.code === '23505') {
       return sendJson(res, 409, { error: 'That email was taken in the meantime' });
     }
-    console.error('ConfirmEmail error:', err);
+    log.error('ConfirmEmail error:', err);
     return sendJson(res, 500, { error: 'Something went wrong' });
   }
 }

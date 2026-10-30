@@ -17,6 +17,7 @@ const env = process.env;
 
 module.exports = {
   port: Number(env.PORT) || 3000,
+  debug: env.DEBUG === '1', // optional: missing means silent, which the subject requires
   appUrl: env.APP_URL.replace(/\/+$/, ''), // no trailing slash: links add their own
   db: {
     user: env.POSTGRES_USER,

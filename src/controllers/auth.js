@@ -6,6 +6,7 @@ const { sendJson } = require('../lib/http');
 const { hashPassword, verifyPassword } = require('../lib/hash');
 const { sendConfirmationEmail, sendResetEmail } = require('../lib/mailer');
 const { normalizeEmail, isValidEmail, isValidUsername, isValidPassword } = require('../lib/validators');
+const log = require('../lib/log');
 
 const SESSION_DURATION_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
 const RESET_DURATION_MS = 1000 * 60 * 60; // 1 hour
@@ -54,7 +55,7 @@ async function register(req, res) {
     } catch (err) {
       // Without this email the account could never be confirmed, and the
       // username and email would stay taken forever: undo the registration.
-      console.error('Register: confirmation email failed:', err);
+      log.error('Register: confirmation email failed:', err);
       await usersModel.deleteUser(user.id);
       return sendJson(res, 503, { error: 'Could not send the confirmation email, please try again later' });
     }
@@ -69,7 +70,7 @@ async function register(req, res) {
       // two registrations raced past the checks above; the DB constraint caught it
       return sendJson(res, 409, { error: 'Username or email already taken' });
     }
-    console.error('Register error:', err); // server-side log only
+    log.error('Register error:', err); // server-side log only
     return sendJson(res, 500, { error: 'Something went wrong' });
   }
 }
@@ -85,7 +86,7 @@ async function confirm(req, res, params) {
     }
     return sendJson(res, 200, { ok: true });
   } catch (err) {
-    console.error('Confirm error:', err);
+    log.error('Confirm error:', err);
     return sendJson(res, 500, { error: 'Something went wrong' });
   }
 }
@@ -126,7 +127,7 @@ async function login(req, res) {
     );
     return sendJson(res, 200, { id: user.id, username: user.username });
   } catch (err) {
-    console.error('Login error:', err);
+    log.error('Login error:', err);
     return sendJson(res, 500, { error: 'Something went wrong' });
   }
 }
@@ -139,7 +140,7 @@ async function logout(req, res) {
     res.setHeader('Set-Cookie', `session_id=; HttpOnly; Path=/; Max-Age=0`);
     return sendJson(res, 200, { ok: true });
   } catch (err) {
-    console.error('Logout error:', err);
+    log.error('Logout error:', err);
     return sendJson(res, 500, { error: 'Something went wrong' });
   }
 }
@@ -155,12 +156,21 @@ async function forgotPassword(req, res) {
     if (user && user.is_confirmed) {
       const token = crypto.randomBytes(32).toString('hex');
       await usersModel.setResetToken(user.id, token, new Date(Date.now() + RESET_DURATION_MS));
-      await sendResetEmail(email, token);
+      try {
+        await sendResetEmail(email, token);
+      } catch (err) {
+        // This 503 reveals that the account exists, but only while our mail
+        // server is down, which an attacker cannot cause. The new token was
+        // already saved, so a link from an earlier request stops working too;
+        // the user just asks again once mail works. Accepted: rare, 1-hour links.
+        log.error('ForgotPassword: reset email failed:', err);
+        return sendJson(res, 503, { error: 'Could not send the email, please try again later' });
+      }
     }
     // same answer whether the email exists or not (no account enumeration)
     return sendJson(res, 200, { message: 'If that email exists, a reset link was sent' });
   } catch (err) {
-    console.error('ForgotPassword error:', err);
+    log.error('ForgotPassword error:', err);
     return sendJson(res, 500, { error: 'Something went wrong' });
   }
 }
@@ -181,7 +191,7 @@ async function resetPassword(req, res, params) {
     await sessionsModel.deleteAllSessionsForUser(user.id);
     return sendJson(res, 200, { ok: true });
   } catch (err) {
-    console.error('ResetPassword error:', err);
+    log.error('ResetPassword error:', err);
     return sendJson(res, 500, { error: 'Something went wrong' });
   }
 }

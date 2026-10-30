@@ -6,6 +6,7 @@ const { composeImage, ImageError, UPLOADS_DIR } = require('../lib/compose');
 const { dataUrlToBuffer } = require('../lib/imageinfo');
 const { requireAuth } = require('../middleware/session');
 const { sendJson, sendFile } = require('../lib/http');
+const log = require('../lib/log');
 
 const MAX_PHOTO_BYTES = 6 * 1024 * 1024;
 const IMAGE_ID = /^\d{1,9}$/;              // 9 digits always fit a Postgres integer
@@ -15,7 +16,7 @@ async function listOverlays(req, res) {
   try {
     return sendJson(res, 200, await overlaysModel.listAll());
   } catch (err) {
-    console.error('ListOverlays error:', err);
+    log.error('ListOverlays error:', err);
     return sendJson(res, 500, { error: 'Something went wrong' });
   }
 }
@@ -26,7 +27,7 @@ async function listMine(req, res) {
   try {
     return sendJson(res, 200, await imagesModel.listByUser(req.user.id));
   } catch (err) {
-    console.error('ListMine error:', err);
+    log.error('ListMine error:', err);
     return sendJson(res, 500, { error: 'Something went wrong' });
   }
 }
@@ -65,10 +66,10 @@ async function create(req, res) {
     if (err instanceof ImageError) {
       // The user's fault (400), but log why: a wrongly rejected image
       // would otherwise be invisible to us.
-      if (err.cause) console.warn('Image rejected:', err.cause.message);
+      if (err.cause) log.warn('Image rejected:', err.cause.message);
       return sendJson(res, 400, { error: err.message });
     }
-    console.error('Create image error:', err);
+    log.error('Create image error:', err);
     return sendJson(res, 500, { error: 'Something went wrong' });
   }
 }
@@ -88,11 +89,11 @@ async function remove(req, res, params) {
     // The row is gone, so for the user the image IS deleted. If the file
     // can't be removed, that's our problem to log, not a failure to report.
     await fs.promises.unlink(path.join(UPLOADS_DIR, deleted.filename)).catch((err) => {
-      if (err.code !== 'ENOENT') console.error('Could not remove', deleted.filename, err);
+      if (err.code !== 'ENOENT') log.error('Could not remove', deleted.filename, err);
     });
     return sendJson(res, 200, { ok: true });
   } catch (err) {
-    console.error('Delete image error:', err);
+    log.error('Delete image error:', err);
     return sendJson(res, 500, { error: 'Something went wrong' });
   }
 }

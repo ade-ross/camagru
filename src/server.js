@@ -5,6 +5,7 @@ const router = require('./router');
 const { parseBody } = require('./middleware/bodyParser');
 const { attachSession, requireAuth } = require('./middleware/session');
 const { sendJson, sendFile } = require('./lib/http');
+const log = require('./lib/log');
 
 // Register all route groups
 require('./routes/auth').register(router.add);
@@ -85,7 +86,7 @@ async function handle(req, res) {
 const server = http.createServer((req, res) => {
   handle(req, res).catch((err) => {
     const status = err.statusCode || 500;
-    if (status === 500) console.error('Unhandled server error:', err);
+    if (status === 500) log.error('Unhandled server error:', err);
 
     // A handler may fail AFTER it started answering (e.g. while streaming a
     // file). Writing new headers then would throw again and crash the server,
@@ -97,5 +98,5 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(config.port, () => {
-  console.log(`Camagru server running on port ${config.port}`);
+  log.info(`Camagru server running on port ${config.port}`);
 });

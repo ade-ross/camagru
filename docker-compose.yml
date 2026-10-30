@@ -33,7 +33,7 @@ services:
       - backend
 
   maildev:
-    image: maildev/maildev
+    image: maildev/maildev:2.2.1
     container_name: camagru-maildev
     restart: unless-stopped
     ports:

@@ -1,5 +1,6 @@
 const fs = require('fs');
 const { pipeline } = require('node:stream/promises');
+const log = require('./log');
 
 function sendJson(res, status, data) {
   const body = JSON.stringify(data); // if this throws, nothing has been sent yet
@@ -40,7 +41,7 @@ async function sendFile(res, filePath, headers = {}) {
     await pipeline(file.createReadStream(), res);
   } catch (err) {
     // ERR_STREAM_PREMATURE_CLOSE only means the client went away
-    if (err.code !== 'ERR_STREAM_PREMATURE_CLOSE') console.error('sendFile:', err);
+    if (err.code !== 'ERR_STREAM_PREMATURE_CLOSE') log.error('sendFile:', err);
   }
   return true;
 }
