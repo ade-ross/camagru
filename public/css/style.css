@@ -1,0 +1,191 @@
+/* Mobile first: these rules are for small screens, the @media block at the
+   end only adds space when the screen is wider. */
+
+:root {
+  --bg: #f6f5f2;
+  --surface: #ffffff;
+  --text: #1f1f1f;
+  --muted: #666666;
+  --border: #dddddd;
+  --accent: #d6336c;
+  --accent-dark: #b02556;
+  --error: #c92a2a;
+  --success: #2b8a3e;
+  --radius: 6px;
+}
+
+* {
+  box-sizing: border-box; /* width includes padding and border: no overflow surprises */
+}
+
+/* The browser hides [hidden] elements with a weak default rule, which any
+   "display: flex" below would beat (.form would stay visible). This makes the
+   hidden attribute always win. */
+[hidden] {
+  display: none !important;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column; /* header, main, footer stacked; main grows */
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+}
+
+a {
+  color: var(--accent-dark);
+}
+
+/* ---------- header ---------- */
+
+.site-header {
+  display: flex;
+  flex-wrap: wrap; /* on a narrow phone the nav drops below the logo */
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.site-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+
+.site-nav a {
+  text-decoration: none;
+}
+
+.site-nav .username {
+  color: var(--muted);
+}
+
+/* ---------- main and footer ---------- */
+
+main {
+  flex: 1; /* takes the free height, so the footer stays at the bottom */
+  width: 100%;
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.site-footer {
+  padding: 1rem;
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+}
+
+/* ---------- forms ---------- */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 24rem;
+}
+
+.form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-weight: 600;
+}
+
+/* the rule under a field, e.g. "3 to 20 letters, digits or _" */
+.hint {
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+input {
+  font: inherit;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+button {
+  font: inherit;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: #ffffff;
+  cursor: pointer;
+}
+
+button:hover {
+  background: var(--accent-dark);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* the header's logout button looks like a link */
+.link-button {
+  padding: 0;
+  background: none;
+  color: var(--accent-dark);
+  text-decoration: underline;
+}
+
+.link-button:hover {
+  background: none;
+}
+
+/* ---------- messages ---------- */
+
+.message {
+  max-width: 24rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius);
+}
+
+.message.error {
+  color: var(--error);
+  background: #fff0f0;
+}
+
+.message.success {
+  color: var(--success);
+  background: #ebfbee;
+}
+
+/* ---------- wider screens ---------- */
+
+@media (min-width: 40rem) {
+  .site-header {
+    padding: 1rem 2rem;
+  }
+
+  main {
+    padding: 2rem;
+  }
+}

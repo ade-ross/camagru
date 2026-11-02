@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign up · Camagru</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/style.css">
+  <script type="module" src="/js/register.js"></script>
+</head>
+<body>
+  <header class="site-header"></header>
+
+  <main>
+    <h1>Sign up</h1>
+
+    <!-- The attributes repeat the server's rules (src/lib/validators.js) so the
+         browser can point at a wrong field before anything is sent. The server
+         still checks everything: anyone can send a request without this page. -->
+    <form id="register-form" class="form" method="post">
+      <label>
+        Username
+        <input name="username" type="text" autocomplete="username" required
+               minlength="3" maxlength="20" pattern="[A-Za-z0-9_]{3,20}"
+               title="3 to 20 letters, digits or _">
+        <span class="hint">3 to 20 letters, digits or _</span>
+      </label>
+      <label>
+        Email
+        <input name="email" type="email" autocomplete="email" required maxlength="254">
+      </label>
+      <label>
+        Password
+        <input name="password" type="password" autocomplete="new-password" required
+               minlength="8" maxlength="128" pattern="(?=.*[A-Za-z])(?=.*\d).{8,128}"
+               title="At least 8 characters, with a letter and a digit">
+        <span class="hint">At least 8 characters, with a letter and a digit</span>
+      </label>
+      <button type="submit">Sign up</button>
+    </form>
+
+    <p id="message" class="message" role="alert" hidden></p>
+
+    <p>Already have an account? <a href="/login.html">Log in</a></p>
+  </main>
+
+  <footer class="site-footer"></footer>
+</body>
+</html>
