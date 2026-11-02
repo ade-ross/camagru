@@ -109,6 +109,18 @@ main {
   font-weight: 600;
 }
 
+/* a checkbox sits on the same line as its text */
+.form label.checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 400;
+}
+
+section + section {
+  margin-top: 2.5rem;
+}
+
 /* the rule under a field, e.g. "3 to 20 letters, digits or _" */
 .hint {
   font-size: 0.875rem;

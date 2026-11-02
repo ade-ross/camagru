@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Confirm your new email · Camagru</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/style.css">
+  <script type="module" src="/js/confirm-email.js"></script>
+</head>
+<body>
+  <header class="site-header"></header>
+
+  <main>
+    <h1>Confirm your new email</h1>
+
+    <!-- waits for a click, like confirm.html: mail scanners must not use up the token -->
+    <form id="confirm-email-form" class="form" method="post">
+      <p>Click the button to make this address your account's email.</p>
+      <button type="submit">Confirm my new email</button>
+    </form>
+
+    <p id="message" class="message" role="alert" hidden></p>
+
+    <p id="done" class="message success" hidden>
+      Your email address was changed. See it in your <a href="/settings.html">settings</a>.
+    </p>
+  </main>
+
+  <footer class="site-footer"></footer>
+</body>
+</html>

@@ -44,6 +44,13 @@ function fillHeader() {
   });
 }
 
+// Called by the settings page after a username change, so the header doesn't
+// show the old name until the next page load
+export function updateHeaderUsername(username) {
+  const name = document.querySelector('.site-nav .username');
+  if (name) name.textContent = username;
+}
+
 function fillFooter() {
   document.querySelector('.site-footer').textContent = 'Camagru · a 42 school project';
 }

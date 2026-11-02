@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Settings · Camagru</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/style.css">
+  <script type="module" src="/js/settings.js"></script>
+</head>
+<body>
+  <header class="site-header"></header>
+
+  <main>
+    <h1>Settings</h1>
+
+    <p id="need-login" class="message error" hidden>
+      You need to <a href="/login.html">log in</a> to change your settings.
+    </p>
+    <p id="page-message" class="message" role="alert" hidden></p>
+
+    <!-- shown once the profile is loaded. Three forms instead of one: each
+         change has its own rules (password needed or not), button and message -->
+    <div id="settings" hidden>
+      <section>
+        <h2>Profile</h2>
+        <form id="profile-form" class="form" method="post">
+          <label>
+            Username
+            <input name="username" type="text" autocomplete="username" required
+                   minlength="3" maxlength="20" pattern="[A-Za-z0-9_]{3,20}"
+                   title="3 to 20 letters, digits or _">
+            <span class="hint">3 to 20 letters, digits or _</span>
+          </label>
+          <label class="checkbox">
+            <input name="notify" type="checkbox">
+            Email me when someone comments on my pictures
+          </label>
+          <button type="submit">Save</button>
+        </form>
+        <p id="profile-message" class="message" role="alert" hidden></p>
+      </section>
+
+      <section>
+        <h2>Email</h2>
+        <p id="pending-email" class="message" hidden>
+          A change to <strong id="pending-address"></strong> is waiting: click the link we sent there.
+          <button id="cancel-email" class="link-button" type="button">Cancel the change</button>
+        </p>
+        <form id="email-form" class="form" method="post">
+          <label>
+            Email
+            <input name="email" type="email" autocomplete="email" required maxlength="254">
+            <span class="hint">Your email changes only after you click the link we send to the new address</span>
+          </label>
+          <label>
+            Current password
+            <input name="currentPassword" type="password" autocomplete="current-password" required>
+          </label>
+          <button type="submit">Change email</button>
+        </form>
+        <p id="email-message" class="message" role="alert" hidden></p>
+      </section>
+
+      <section>
+        <h2>Password</h2>
+        <form id="password-form" class="form" method="post">
+          <label>
+            Current password
+            <input name="currentPassword" type="password" autocomplete="current-password" required>
+          </label>
+          <label>
+            New password
+            <input name="newPassword" type="password" autocomplete="new-password" required
+                   minlength="8" maxlength="128" pattern="(?=.*[A-Za-z])(?=.*\d).{8,128}"
+                   title="At least 8 characters, with a letter and a digit">
+            <span class="hint">At least 8 characters, with a letter and a digit</span>
+          </label>
+          <button type="submit">Change password</button>
+        </form>
+        <p id="password-message" class="message" role="alert" hidden></p>
+      </section>
+    </div>
+  </main>
+
+  <footer class="site-footer"></footer>
+</body>
+</html>
