@@ -11,6 +11,7 @@ function register(add) {
   add('POST', '/api/confirm/:token', controller.confirm);
   add('POST', '/api/login', controller.login);
   add('POST', '/api/logout', controller.logout);
+  add('GET', '/api/session', controller.session); // no auth flag: logged-out visitors get { user: null }
   add('POST', '/api/forgot-password', controller.forgotPassword);
   add('POST', '/api/reset-password/:token', controller.resetPassword);
 }

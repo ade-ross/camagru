@@ -145,6 +145,21 @@ async function logout(req, res) {
   }
 }
 
+// GET /api/session, asked by the header of every page. Always 200: "nobody is
+// logged in" is a normal answer to "is there a session?", not an error. A 401
+// here would put a red line in Chrome's console for every logged-out visitor.
+// /api/users/me keeps its 401: there, a missing session really is a failure.
+async function session(req, res) {
+  if (!req.user) return sendJson(res, 200, { user: null });
+  try {
+    const user = await usersModel.findById(req.user.id);
+    return sendJson(res, 200, { user: user ? { id: user.id, username: user.username } : null });
+  } catch (err) {
+    log.error('Session error:', err);
+    return sendJson(res, 500, { error: 'Something went wrong' });
+  }
+}
+
 async function forgotPassword(req, res) {
   const email = normalizeEmail(req.body.email);
   if (!isValidEmail(email)) {
@@ -197,6 +212,6 @@ async function resetPassword(req, res, params) {
 }
 
 module.exports = {
-  register, confirm, login, logout,
+  register, confirm, login, logout, session,
   forgotPassword, resetPassword,
 };
