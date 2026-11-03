@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Editor · Camagru</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/style.css">
+  <script type="module" src="/js/editor.js"></script>
+</head>
+<body>
+  <header class="site-header"></header>
+
+  <main>
+    <h1>Create a picture</h1>
+
+    <p id="need-login" class="message error" hidden>
+      You need to <a href="/login.html">log in</a> to create pictures.
+    </p>
+    <p id="page-message" class="message" role="alert" hidden></p>
+
+    <!-- shown only to a logged-in user. Main part: preview, overlays, capture
+         button. Side part: the user's previous pictures. -->
+    <div id="editor" class="editor" hidden>
+      <section class="editor-main">
+        <!-- 4:3 like the server's 640x480 result. The overlay is laid on top
+             with CSS for the preview only: the real compositing is server-side -->
+        <div class="preview">
+          <p id="preview-empty" class="preview-empty">The webcam or an uploaded picture will show here.</p>
+          <img id="preview-overlay" class="preview-overlay" alt="" hidden>
+        </div>
+
+        <h2>Choose an overlay</h2>
+        <div id="overlays" class="overlay-list"></div>
+
+        <!-- the subject: disabled until an overlay is selected -->
+        <button id="capture" type="button" disabled>Take the picture</button>
+      </section>
+
+      <aside class="editor-side">
+        <h2>My pictures</h2>
+        <p id="side-message" class="message" role="alert" hidden></p>
+        <p id="no-pictures" hidden>No pictures yet.</p>
+        <ul id="my-pictures" class="thumbs"></ul>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="site-footer"></footer>
+</body>
+</html>

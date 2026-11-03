@@ -190,6 +190,117 @@ button:disabled {
   background: #ebfbee;
 }
 
+/* ---------- editor ---------- */
+
+/* one column on a phone (the side panel goes below), two from 48rem */
+.editor {
+  display: grid;
+  gap: 2rem;
+}
+
+.editor-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0; /* a grid/flex child may otherwise refuse to shrink below its content */
+}
+
+.editor-main h2,
+.editor-side h2 {
+  margin: 0;
+}
+
+/* 4:3 box: the same shape as the server's 640x480 result. Everything inside
+   is stacked on top of each other and fills the box. */
+.preview {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  background: #2b2b2b;
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.preview > * {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+.preview-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  text-align: center;
+  color: #cccccc;
+}
+
+.overlay-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr)); /* as many columns as fit */
+  gap: 0.5rem;
+}
+
+/* a card, not the pink default button */
+.overlay-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--text);
+  background: var(--surface);
+  border: 2px solid var(--border);
+}
+
+.overlay-option:hover {
+  background: var(--bg);
+}
+
+.overlay-option[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: #fdeef3;
+}
+
+.overlay-option img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: #9a9a9a; /* the overlays are mostly transparent: grey makes them visible */
+  border-radius: 4px;
+}
+
+.thumbs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+  gap: 1rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.thumbs li {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+
+.thumbs img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radius);
+}
+
+@media (min-width: 48rem) {
+  .editor {
+    grid-template-columns: minmax(0, 1fr) 15rem;
+  }
+}
+
 /* ---------- wider screens ---------- */
 
 @media (min-width: 40rem) {
