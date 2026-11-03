@@ -26,8 +26,21 @@
         <!-- 4:3 like the server's 640x480 result. The overlay is laid on top
              with CSS for the preview only: the real compositing is server-side -->
         <div class="preview">
-          <p id="preview-empty" class="preview-empty">The webcam or an uploaded picture will show here.</p>
+          <p id="preview-empty" class="preview-empty">Starting the webcam…</p>
+          <!-- muted + playsinline: browsers only autoplay muted video, and iPhones
+               would otherwise open it fullscreen. Later elements are drawn on
+               top, so the overlay comes after the video. -->
+          <video id="video" class="preview-video" autoplay muted playsinline hidden></video>
+          <img id="upload-preview" class="preview-upload" alt="The picture you uploaded" hidden>
           <img id="preview-overlay" class="preview-overlay" alt="" hidden>
+        </div>
+
+        <div class="source-controls">
+          <label class="file-label">
+            Or upload a picture (PNG or JPEG)
+            <input id="file-input" type="file" accept="image/png,image/jpeg">
+          </label>
+          <button id="use-webcam" class="link-button" type="button" hidden>Back to the webcam</button>
         </div>
 
         <h2>Choose an overlay</h2>
@@ -35,6 +48,7 @@
 
         <!-- the subject: disabled until an overlay is selected -->
         <button id="capture" type="button" disabled>Take the picture</button>
+        <p id="capture-message" class="message" role="alert" hidden></p>
       </section>
 
       <aside class="editor-side">

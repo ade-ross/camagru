@@ -228,6 +228,34 @@ button:disabled {
   margin: 0;
 }
 
+/* cover: fill the 4:3 box and cut the excess from the center, exactly like
+   the server's crop, so the preview shows what the result will contain.
+   scaleX(-1) mirrors only the video (like a mirror); the overlay is never
+   mirrored, so its text stays readable. The capture is mirrored the same way. */
+.preview-video {
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+
+/* an uploaded picture gets the same crop, but no mirror: it is already a normal photo */
+.preview-upload {
+  object-fit: cover;
+}
+
+.source-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem 1rem;
+}
+
+.file-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-weight: 600;
+}
+
 .preview-empty {
   display: flex;
   align-items: center;
