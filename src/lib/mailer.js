@@ -34,7 +34,7 @@ const sendResetEmail = (to, token) =>
 const sendEmailChangeEmail = (to, token) =>
   sendLinkEmail(to, 'Confirm your new Camagru email', 'Confirm your new email address', `/confirm-email.html?token=${token}`);
 
-// Not used yet: the gallery decides the final page name
+// The link opens the picture's page, where the new comment is
 const sendCommentNotification = (to, imageId) =>
   sendLinkEmail(to, 'New comment on your Camagru image', 'Someone commented on your image', `/image.html?id=${imageId}`);
 

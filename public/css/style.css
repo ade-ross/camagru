@@ -128,7 +128,8 @@ section + section {
   color: var(--muted);
 }
 
-input {
+input,
+textarea {
   font: inherit;
   padding: 0.5rem 0.75rem;
   border: 1px solid var(--border);
@@ -136,7 +137,13 @@ input {
   background: var(--surface);
 }
 
-input:focus {
+/* taller is fine, wider would break the layout */
+textarea {
+  resize: vertical;
+}
+
+input:focus,
+textarea:focus {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
@@ -321,6 +328,123 @@ button:disabled {
   width: 100%;
   aspect-ratio: 4 / 3;
   border-radius: var(--radius);
+}
+
+/* ---------- gallery and picture page ---------- */
+
+/* as many 16rem columns as fit; min() keeps one column from overflowing a
+   screen narrower than 16rem */
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(16rem, 100%), 1fr));
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden; /* the picture's corners follow the card's rounded ones */
+}
+
+.card img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3; /* reserves the space before the picture arrives: no jumping */
+}
+
+.card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.byline {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* an outlined button, filled when the picture is liked */
+.like-button {
+  padding: 0.25rem 0.75rem;
+  color: var(--accent-dark);
+  background: var(--surface);
+  border: 1px solid var(--accent);
+}
+
+.like-button:hover {
+  background: #fdeef3;
+}
+
+.like-button[aria-pressed="true"] {
+  color: #ffffff;
+  background: var(--accent);
+}
+
+.like-count {
+  color: var(--muted);
+}
+
+.load-more {
+  display: block;
+  margin: 1.5rem auto 0;
+}
+
+.picture {
+  max-width: 40rem;
+}
+
+.picture img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radius);
+}
+
+.comments {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0 0 1.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.comments li {
+  padding: 0.5rem 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.comment-meta {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+/* pre-wrap keeps the line breaks the user typed (HTML would merge them into
+   spaces); anywhere lets a very long word without spaces wrap instead of
+   pushing the page wider than a phone screen */
+.comment-body {
+  margin: 0.25rem 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.comment-form {
+  max-width: none;
 }
 
 @media (min-width: 48rem) {

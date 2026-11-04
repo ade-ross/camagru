@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Picture · Camagru</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/style.css">
+  <script type="module" src="/js/image.js"></script>
+</head>
+<body>
+  <header class="site-header"></header>
+
+  <main>
+    <h1>Picture</h1>
+
+    <p id="page-message" class="message" role="alert" hidden></p>
+
+    <!-- shown once the picture is loaded (the comment emails link here) -->
+    <article id="picture" class="picture" hidden>
+      <img id="picture-img" alt="">
+      <div class="card-info">
+        <p id="picture-byline" class="byline"></p>
+        <div id="picture-actions" class="card-actions"></div>
+      </div>
+
+      <section id="comments">
+        <h2 id="comments-title">Comments</h2>
+        <p id="no-comments" hidden>No comments yet.</p>
+        <ul id="comment-list" class="comments"></ul>
+
+        <p id="login-hint" hidden><a href="/login.html">Log in</a> to like and comment.</p>
+
+        <!-- same limits as the server: required, at most 1000 characters -->
+        <form id="comment-form" class="form comment-form" method="post" hidden>
+          <label>
+            Add a comment
+            <textarea name="text" rows="3" required maxlength="1000"></textarea>
+            <span class="hint">Up to 1000 characters</span>
+          </label>
+          <button type="submit">Send</button>
+        </form>
+        <p id="comment-message" class="message" role="alert" hidden></p>
+      </section>
+    </article>
+  </main>
+
+  <footer class="site-footer"></footer>
+</body>
+</html>

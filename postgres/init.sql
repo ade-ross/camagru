@@ -51,6 +51,8 @@ CREATE TABLE comments (
 
 CREATE INDEX idx_images_created_at ON images(created_at DESC);
 CREATE INDEX idx_comments_image_id ON comments(image_id);
+-- the primary key (user_id, image_id) can't find "all likes of picture X" fast
+CREATE INDEX idx_likes_image_id ON likes(image_id);
 CREATE INDEX idx_sessions_expires ON sessions(expires_at);
 
 -- "Alice" and "alice" must not be two accounts: uniqueness on the lowercase form.

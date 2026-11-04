@@ -11,6 +11,7 @@ const log = require('./lib/log');
 require('./routes/auth').register(router.add);
 require('./routes/users').register(router.add);
 require('./routes/images').register(router.add);
+require('./routes/gallery').register(router.add);
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 const BODY_LIMIT = 1e6;
@@ -74,7 +75,9 @@ async function handle(req, res) {
   if (match.auth && !requireAuth(req, res)) return;
 
   if (req.method === 'POST' || req.method === 'PATCH' || req.method === 'PUT') {
-    const limit = req.url.startsWith('/api/images') ? IMAGE_BODY_LIMIT : BODY_LIMIT;
+    // Only the photo upload itself gets the big limit: "/api/images/5/comments"
+    // also starts with "/api/images" and must keep the normal one
+    const limit = req.url.split('?')[0] === '/api/images' ? IMAGE_BODY_LIMIT : BODY_LIMIT;
     req.body = await parseBody(req, limit);
   } else {
     req.body = {};

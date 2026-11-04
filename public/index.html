@@ -6,15 +6,24 @@
   <title>Gallery · Camagru</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/css/style.css">
-  <script type="module" src="/js/layout.js"></script>
+  <script type="module" src="/js/gallery.js"></script>
 </head>
 <body>
   <header class="site-header"></header>
 
   <main>
     <h1>Gallery</h1>
-    <!-- placeholder until the gallery backend exists (step 3) -->
-    <p>The gallery is coming soon.</p>
+
+    <p id="login-hint" hidden><a href="/login.html">Log in</a> to like and comment.</p>
+    <p id="page-message" class="message" role="alert" hidden></p>
+
+    <p id="gallery-empty" hidden>No pictures yet.</p>
+    <!-- all users' pictures, newest first, filled by gallery.js one page at a time -->
+    <ul id="gallery" class="gallery"></ul>
+
+    <!-- infinite scroll: when this button comes into view, the next page loads
+         by itself. Clicking it does the same (the fallback). -->
+    <button id="load-more" class="load-more" type="button" hidden>Load more</button>
   </main>
 
   <footer class="site-footer"></footer>
