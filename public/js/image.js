@@ -8,6 +8,7 @@ const picture = document.getElementById('picture');
 const pictureImg = document.getElementById('picture-img');
 const pictureByline = document.getElementById('picture-byline');
 const pictureActions = document.getElementById('picture-actions');
+const deletePicture = document.getElementById('delete-picture');
 
 const commentsTitle = document.getElementById('comments-title');
 const noComments = document.getElementById('no-comments');
@@ -43,7 +44,9 @@ function showPicture(image, comments, user) {
   pictureImg.src = `/uploads/${image.filename}`;
   pictureImg.alt = `Picture by ${image.author}`;
   pictureByline.textContent = `by ${image.author} · ${new Date(image.created_at).toLocaleString()}`;
-  pictureActions.append(likeView(image, user));
+  pictureActions.prepend(likeView(image, user)); // before the Delete button
+  // Only shows the button: the server still checks that the picture is yours
+  deletePicture.hidden = !image.mine;
 
   for (const comment of comments) commentList.append(commentItem(comment));
   updateCommentCount();
@@ -57,6 +60,22 @@ function showPicture(image, comments, user) {
   // scroll there on load, but the section was still hidden, so do it now.
   if (location.hash === '#comments') document.getElementById('comments').scrollIntoView();
 }
+
+deletePicture.addEventListener('click', async () => {
+  if (!confirm('Delete this picture? This cannot be undone.')) return;
+  deletePicture.disabled = true;
+  try {
+    await api('DELETE', `/api/images/${id}`);
+  } catch (err) {
+    // 404: already deleted (e.g. from the editor in another tab), same end result
+    if (err.status !== 404) {
+      showMessage(pageMessage, err.message, 'error');
+      deletePicture.disabled = false;
+      return;
+    }
+  }
+  location.href = '/'; // this page now shows a picture that no longer exists
+});
 
 handleSubmit(commentForm, commentMessage, async () => {
   const text = commentForm.elements.text.value.trim();

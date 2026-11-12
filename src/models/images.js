@@ -32,11 +32,14 @@ async function deleteOwned(imageId, userId) {
 // What the gallery shows for each picture. $1 is the viewer's user id (NULL for
 // a visitor): "l.user_id = NULL" is never true, so a visitor's liked is false.
 // COUNT returns a bigint, which pg hands over as a string: ::int makes it a number.
+// mine: is the viewer the author (image.html shows Delete then)? For a visitor,
+// "i.user_id = NULL" is NULL ("unknown"), not false: COALESCE turns it into false.
 const PUBLIC_FIELDS = `
   i.id, i.filename, i.created_at, u.username AS author,
   (SELECT COUNT(*) FROM likes l WHERE l.image_id = i.id)::int AS likes,
   (SELECT COUNT(*) FROM comments c WHERE c.image_id = i.id)::int AS comments,
-  EXISTS (SELECT 1 FROM likes l WHERE l.image_id = i.id AND l.user_id = $1) AS liked`;
+  EXISTS (SELECT 1 FROM likes l WHERE l.image_id = i.id AND l.user_id = $1) AS liked,
+  COALESCE(i.user_id = $1, false) AS mine`;
 
 // One page of the public gallery, newest first. "Keyset" pagination: the pictures
 // older than the last one the client has (before = its id; NULL = first page).

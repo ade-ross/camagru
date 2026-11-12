@@ -13,6 +13,8 @@ let user = null;
 let nextUrl = '/api/gallery'; // the next page to load; null once the last page is shown
 let loading = false;
 let buttonInView = false;     // kept up to date by the IntersectionObserver
+const loadedPages = [];       // URLs of the pages shown so far, to refresh them
+const cards = new Map();      // picture id -> its <li>
 
 // The cards need to know who is logged in (like button or count only),
 // so nothing is loaded before the session answer
@@ -43,9 +45,10 @@ async function loadPage() {
   loadMore.disabled = true;
   loadMore.textContent = 'Loading…';
 
+  const url = nextUrl;
   let page;
   try {
-    page = await api('GET', nextUrl);
+    page = await api('GET', url);
   } catch (err) {
     // the button stays: clicking it tries the same page again
     showMessage(pageMessage, err.message, 'error');
@@ -58,7 +61,12 @@ async function loadPage() {
   }
 
   pageMessage.hidden = true;
-  for (const image of page.images) gallery.append(card(image));
+  loadedPages.push(url);
+  for (const image of page.images) {
+    const item = card(image);
+    cards.set(image.id, item);
+    gallery.append(item);
+  }
   // nextBefore is the id to continue below; null means this was the last page
   nextUrl = page.nextBefore === null ? null : `/api/gallery?before=${page.nextBefore}`;
   loadMore.hidden = nextUrl === null;
@@ -70,7 +78,35 @@ async function loadPage() {
   if (buttonInView) loadPage();
 }
 
-// image: { id, filename, created_at, author, likes, comments, liked } as the API returns it.
+// Back/forward cache: with the Back button, the browser shows this page exactly as
+// it was left, from memory, without running our code again. A like or comment added
+// on image.html meanwhile would not show. "pageshow" fires then too, with
+// persisted = true (on a normal load it is false: nothing to refresh).
+window.addEventListener('pageshow', (event) => {
+  if (event.persisted) refreshCards();
+});
+
+// Asks for the pages already shown again and redraws the cards in place, so the
+// scroll position stays. Only existing cards are redrawn: a picture added or
+// deleted meanwhile shows up or goes away on the next page load.
+async function refreshCards() {
+  try {
+    for (const url of loadedPages) {
+      const page = await api('GET', url);
+      for (const image of page.images) {
+        const old = cards.get(image.id);
+        if (!old) continue;
+        const fresh = card(image);
+        old.replaceWith(fresh);
+        cards.set(image.id, fresh);
+      }
+    }
+  } catch (err) {
+    showMessage(pageMessage, err.message, 'error');
+  }
+}
+
+// image: { id, filename, created_at, author, likes, comments, liked, mine } as the API returns it.
 // Built with createElement/textContent only: the author's name is user content.
 function card(image) {
   const item = document.createElement('li');

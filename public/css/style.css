@@ -167,6 +167,15 @@ button:disabled {
   cursor: not-allowed;
 }
 
+/* red: the one button that destroys data for good */
+.danger-button {
+  background: var(--error);
+}
+
+.danger-button:hover {
+  background: #a51d1d;
+}
+
 /* the header's logout button looks like a link */
 .link-button {
   padding: 0;

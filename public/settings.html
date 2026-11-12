@@ -80,6 +80,19 @@
         </form>
         <p id="password-message" class="message" role="alert" hidden></p>
       </section>
+
+      <section>
+        <h2>Delete my account</h2>
+        <p>This deletes your account, your pictures and your likes and comments. It cannot be undone.</p>
+        <form id="delete-form" class="form" method="post">
+          <label>
+            Current password
+            <input name="currentPassword" type="password" autocomplete="current-password" required>
+          </label>
+          <button class="danger-button" type="submit">Delete my account</button>
+        </form>
+        <p id="delete-message" class="message" role="alert" hidden></p>
+      </section>
     </div>
   </main>
 

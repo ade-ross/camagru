@@ -74,7 +74,9 @@ async function handle(req, res) {
   // (The controllers still call requireAuth too, as a second line of defense.)
   if (match.auth && !requireAuth(req, res)) return;
 
-  if (req.method === 'POST' || req.method === 'PATCH' || req.method === 'PUT') {
+  // DELETE too: deleting the account sends the password in the body. Our other
+  // DELETEs send no body, and an empty body is read as {}.
+  if (req.method === 'POST' || req.method === 'PATCH' || req.method === 'PUT' || req.method === 'DELETE') {
     // Only the photo upload itself gets the big limit: "/api/images/5/comments"
     // also starts with "/api/images" and must keep the normal one
     const limit = req.url.split('?')[0] === '/api/images' ? IMAGE_BODY_LIMIT : BODY_LIMIT;

@@ -96,7 +96,9 @@ async function updateProfile(userId, { username, notifyOnComment }) {
   return rows[0];
 }
 
-// Used to undo a registration whose confirmation email could not be sent
+// Used to undo a registration whose confirmation email could not be sent, and to
+// delete an account. ON DELETE CASCADE (init.sql) removes the user's sessions,
+// images, likes and comments, and the likes and comments on those images.
 async function deleteUser(userId) {
   await db.query(`DELETE FROM users WHERE id = $1`, [userId]);
 }

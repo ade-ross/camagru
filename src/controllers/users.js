@@ -1,6 +1,10 @@
 const usersModel = require('../models/users');
 const sessionsModel = require('../models/sessions');
+const imagesModel = require('../models/images');
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
+const { UPLOADS_DIR } = require('../lib/compose');
 const { hashPassword, verifyPassword } = require('../lib/hash');
 const { normalizeEmail, isValidEmail, isValidUsername, isValidPassword } = require('../lib/validators');
 const { requireAuth } = require('../middleware/session');
@@ -122,4 +126,45 @@ async function confirmEmail(req, res, params) {
   }
 }
 
-module.exports = { getMe, updateMe, confirmEmail };
+// DELETE /api/users/me, body: { currentPassword }. Deletes the account and everything in it.
+async function deleteMe(req, res) {
+  if (!requireAuth(req, res)) return;
+
+  // The password again, like for an email or password change: a stolen session
+  // cookie alone must not be enough to destroy an account
+  const { currentPassword } = req.body;
+  if (typeof currentPassword !== 'string') {
+    return sendJson(res, 400, { error: 'Current password required' });
+  }
+
+  try {
+    const storedHash = await usersModel.getPasswordHash(req.user.id);
+    if (!(await verifyPassword(currentPassword, storedHash))) {
+      return sendJson(res, 403, { error: 'Current password is incorrect' });
+    }
+
+    // The file names first: once the user row is gone, the cascade has deleted the
+    // image rows too. (A picture saved in the instant between these two lines would
+    // lose its row and leave its file behind: harmless, and the user is the one deleting.)
+    const images = await imagesModel.listByUser(req.user.id);
+    await usersModel.deleteUser(req.user.id);
+
+    // The account IS deleted now. A file that can't be removed is ours to log,
+    // not a failure to report (same as deleting one picture).
+    for (const image of images) {
+      await fs.promises.unlink(path.join(UPLOADS_DIR, image.filename)).catch((err) => {
+        if (err.code !== 'ENOENT') log.error('Could not remove', image.filename, err);
+      });
+    }
+
+    // The session row went with the cascade; also tell the browser to drop the
+    // cookie (the same header as logout)
+    res.setHeader('Set-Cookie', 'session_id=; HttpOnly; Path=/; Max-Age=0');
+    return sendJson(res, 200, { ok: true });
+  } catch (err) {
+    log.error('DeleteMe error:', err);
+    return sendJson(res, 500, { error: 'Something went wrong' });
+  }
+}
+
+module.exports = { getMe, updateMe, confirmEmail, deleteMe };

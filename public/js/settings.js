@@ -18,6 +18,9 @@ const cancelEmail = document.getElementById('cancel-email');
 const passwordForm = document.getElementById('password-form');
 const passwordMessage = document.getElementById('password-message');
 
+const deleteForm = document.getElementById('delete-form');
+const deleteMessage = document.getElementById('delete-message');
+
 let me; // the profile as GET /api/users/me last returned it
 
 // Only ask for the profile when someone is logged in: for a visitor,
@@ -96,4 +99,11 @@ handleSubmit(passwordForm, passwordMessage, async () => {
   });
   passwordForm.reset(); // empty both fields: passwords shouldn't stay on screen
   showMessage(passwordMessage, 'Password changed. You were logged out on your other devices.', 'success');
+});
+
+handleSubmit(deleteForm, deleteMessage, async () => {
+  // a second chance: this one cannot be undone
+  if (!confirm('Delete your account and all your pictures? This cannot be undone.')) return;
+  await api('DELETE', '/api/users/me', { currentPassword: deleteForm.currentPassword.value });
+  location.href = '/'; // leave the page: it shows an account that no longer exists
 });
