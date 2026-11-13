@@ -71,26 +71,67 @@ async function decodePhoto(buffer, type) {
   return img;
 }
 
-// photoBuffer:     raw PNG/JPEG bytes from the user
-// overlayFilename: comes from the overlays table, NEVER from the client
-// filter:          a FILTERS key, already checked with isFilter()
+// Sticker size limits, in percent (the editor's slider uses the same range)
+const MIN_SIZE = 25;
+const MAX_SIZE = 200;
+
+// position: an object with x, y, size from the client (the sticker object).
+// x/y: where the sticker's center goes on the 640x480 result; size: percent.
+// All integers, so no rounding questions. The center must stay on the
+// picture, so a sticker can't be lost off-screen. Returns true if valid.
+function isValidPosition(position) {
+  if (typeof position !== 'object' || position === null) return false;
+  const { x, y, size } = position;
+  return Number.isInteger(x) && x >= 0 && x <= OUT_W
+    && Number.isInteger(y) && y >= 0 && y <= OUT_H
+    && Number.isInteger(size) && size >= MIN_SIZE && size <= MAX_SIZE;
+}
+
+// Opens one of our overlay files. Its size is checked here, so the drawing
+// code can rely on 640x480.
+async function openOverlay(filename) {
+  const layer = await gd.openFile(path.join(OVERLAYS_DIR, filename));
+  if (!layer || layer.width !== OUT_W || layer.height !== OUT_H) {
+    if (layer) layer.destroy();
+    // Our own asset is wrong: a server problem (500), not the user's (400)
+    throw new Error(`Overlay ${filename} must be ${OUT_W}x${OUT_H}`);
+  }
+  return layer;
+}
+
+// Draws a sticker's layer on out. The whole 640x480 layer is scaled by s
+// around the sticker's center (cx, cy), then moved so that center lands on
+// (x, y): a point p of the file ends up at (p - c) * s + target. The editor's
+// CSS preview uses the same formula. Parts outside the picture are cut off.
+function drawSticker(out, layer, sticker) {
+  const s = sticker.size / 100;
+  const dstX = Math.round(sticker.x - sticker.overlay.center_x * s);
+  const dstY = Math.round(sticker.y - sticker.overlay.center_y * s);
+  // PHP: imagecopyresampled. Smooth scaling, and the alpha is kept.
+  layer.copyResampled(out, dstX, dstY, 0, 0,
+    Math.round(OUT_W * s), Math.round(OUT_H * s), OUT_W, OUT_H);
+}
+
+// photoBuffer: raw PNG/JPEG bytes from the user
+// filter:      a FILTERS key, already checked with isFilter()
+// frame:       null, or a frame's row of the overlays table
+// sticker:     null, or { overlay: a sticker's row, x, y, size } (checked with
+//              isValidPosition). The rows come from the DB, NEVER from the client.
+// At least one of frame and sticker (the controller makes sure).
 // Returns the name of the new file inside UPLOADS_DIR.
-async function composeImage(photoBuffer, overlayFilename, filter) {
+async function composeImage(photoBuffer, filter, frame, sticker) {
   // Check type and dimensions from the headers BEFORE decoding anything
   const info = inspect(photoBuffer);
   if (info.error) throw new ImageError(info.error);
 
   let photo = null;
-  let overlay = null;
+  let stickerLayer = null; // decoded pixels of the overlay files
+  let frameLayer = null;
   let out = null;
   try {
     photo = await decodePhoto(photoBuffer, info.type);
-
-    overlay = await gd.openFile(path.join(OVERLAYS_DIR, overlayFilename));
-    if (!overlay || overlay.width !== OUT_W || overlay.height !== OUT_H) {
-      // Our own asset is wrong: a server problem (500), not the user's (400)
-      throw new Error(`Overlay ${overlayFilename} must be ${OUT_W}x${OUT_H}`);
-    }
+    if (sticker) stickerLayer = await openOverlay(sticker.overlay.filename);
+    if (frame) frameLayer = await openOverlay(frame.filename);
 
     out = await gd.createTrueColor(OUT_W, OUT_H);
     out.alphaBlending(1); // already the default for truecolor, explicit on purpose
@@ -103,12 +144,15 @@ async function composeImage(photoBuffer, overlayFilename, filter) {
     const srcY = Math.floor((photo.height - srcH) / 2);
     photo.copyResampled(out, 0, 0, srcX, srcY, OUT_W, OUT_H, srcW, srcH);
 
-    // 2. The filter, BEFORE the overlay: it changes the photo only, the
-    //    overlay keeps its own colors (like the preview)
+    // 2. The filter, BEFORE the overlays: it changes the photo only, the
+    //    overlays keep their own colors (like the preview)
     FILTERS[filter](out);
 
-    // 3. Superpose the overlay: its transparent pixels leave the photo visible
-    overlay.copy(out, 0, 0, 0, 0, OUT_W, OUT_H);
+    // 3. The sticker, then the frame ON TOP, like a framed photo: a sticker
+    //    pushed to the edge goes under the frame's border. Transparent pixels
+    //    leave what's below visible. Same order as the layers in the preview.
+    if (sticker) drawSticker(out, stickerLayer, sticker);
+    if (frame) frameLayer.copy(out, 0, 0, 0, 0, OUT_W, OUT_H);
 
     // 4. Encode a brand new PNG under a random name. Only decoded pixels
     //    survive, so anything hidden in the uploaded file is gone.
@@ -125,9 +169,10 @@ async function composeImage(photoBuffer, overlayFilename, filter) {
   } finally {
     // libgd memory is not managed by the JavaScript garbage collector
     if (photo) photo.destroy();
-    if (overlay) overlay.destroy();
+    if (stickerLayer) stickerLayer.destroy();
+    if (frameLayer) frameLayer.destroy();
     if (out) out.destroy();
   }
 }
 
-module.exports = { composeImage, isFilter, ImageError, UPLOADS_DIR };
+module.exports = { composeImage, isFilter, isValidPosition, ImageError, UPLOADS_DIR };

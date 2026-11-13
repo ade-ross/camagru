@@ -19,8 +19,8 @@
     </p>
     <p id="page-message" class="message" role="alert" hidden></p>
 
-    <!-- shown only to a logged-in user. Main part: preview, overlays, capture
-         button. Side part: the user's previous pictures. -->
+    <!-- shown only to a logged-in user. Main part: preview, capture button,
+         filters, frames and stickers. Side part: the user's previous pictures. -->
     <div id="editor" class="editor" hidden>
       <section class="editor-main">
         <!-- 4:3 like the server's 640x480 result. The overlay is laid on top
@@ -33,7 +33,9 @@
                top, so the overlay comes after the video. -->
           <video id="video" class="preview-video" autoplay muted playsinline hidden></video>
           <img id="upload-preview" class="preview-upload" alt="The picture you uploaded" hidden>
-          <img id="preview-overlay" class="preview-overlay" alt="" hidden>
+          <!-- sticker, then frame on top: the same order the server draws them -->
+          <img id="preview-sticker" alt="" hidden>
+          <img id="preview-frame" alt="" hidden>
         </div>
 
         <!-- right under the preview, so you can see yourself while pressing it.
@@ -41,27 +43,56 @@
         <button id="capture" type="button" disabled>Take the picture</button>
         <p id="capture-message" class="message" role="alert" hidden></p>
 
-        <div class="source-controls">
-          <label class="file-label">
-            Or upload a picture (PNG or JPEG)
-            <input id="file-input" type="file" accept="image/png,image/jpeg">
-          </label>
-          <button id="use-webcam" class="link-button" type="button" hidden>Back to the webcam</button>
-          <!-- the values are the server's filter names (src/lib/compose.js) -->
-          <label class="file-label">
-            Filter
-            <select id="filter">
-              <option value="none">None</option>
-              <option value="grayscale">Black &amp; white</option>
-              <option value="negative">Negative</option>
-              <option value="contrast">High contrast</option>
-              <option value="faded">Faded</option>
-            </select>
+        <!-- one line under the capture button (two on a phone): where the photo
+             comes from on the left, the sticker's size on the right -->
+        <div class="toolbar">
+          <div class="source-controls">
+            <!-- The browser's own file input can't be styled (and shows its text
+                 in the browser's language), so it is hidden and its label is
+                 styled as a button: clicking a label opens the input inside it. -->
+            <label class="upload-button">
+              Upload a photo
+              <input id="file-input" class="visually-hidden" type="file" accept="image/png,image/jpeg">
+            </label>
+            <button id="use-webcam" class="link-button" type="button" hidden>Back to the webcam</button>
+          </div>
+
+          <!-- only for stickers (overlays with a center); frames can't be resized.
+               Same range as the server accepts (src/lib/compose.js). -->
+          <label id="sticker-controls" class="size-control" hidden>
+            Size
+            <input id="sticker-size" type="range" min="25" max="200" step="5" value="100">
           </label>
         </div>
 
-        <h2>Choose an overlay</h2>
-        <div id="overlays" class="overlay-list"></div>
+        <h2>Filter</h2>
+        <p class="hint row-hint">Click a chosen one again to remove it (in every row).</p>
+        <!-- data-filter: the server's filter names (src/lib/compose.js). The same
+             attribute makes the CSS show each sample through its filter. -->
+        <div id="filters" class="choice-list">
+          <button class="choice" type="button" data-filter="grayscale" aria-pressed="false">
+            <span class="filter-sample"></span>Black &amp; white
+          </button>
+          <button class="choice" type="button" data-filter="negative" aria-pressed="false">
+            <span class="filter-sample"></span>Negative
+          </button>
+          <button class="choice" type="button" data-filter="contrast" aria-pressed="false">
+            <span class="filter-sample"></span>High contrast
+          </button>
+          <button class="choice" type="button" data-filter="faded" aria-pressed="false">
+            <span class="filter-sample"></span>Faded
+          </button>
+        </div>
+
+        <!-- filled by editor.js from /api/overlays (a sticker has a center, a
+             frame doesn't). Each button gets the overlay's id in data-id. -->
+        <h2>Frame</h2>
+        <p class="hint row-hint">Choose a frame, a sticker, or one of each.</p>
+        <div id="frames" class="choice-list"></div>
+
+        <h2>Sticker</h2>
+        <p class="hint row-hint">Drag it on the picture to move it.</p>
+        <div id="stickers" class="choice-list"></div>
       </section>
 
       <aside class="editor-side">

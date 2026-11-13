@@ -46,7 +46,9 @@ The webcam only works on `localhost` or over https, because browsers refuse came
 - **Live preview:** the chosen overlay is shown on top of the webcam or the uploaded picture before saving.
 - **Infinite scroll:** the gallery loads the next page as you reach the bottom. It still loads real pages of 6, and the "Load more" button does the same by hand.
 - **Account deletion:** in the settings, with your password. It removes your account, your pictures (files included), and your likes and comments.
-- **Filters:** black & white, negative, high contrast and faded. The server applies them with GD (PHP: `imagefilter`); the editor previews them live with CSS filters calibrated to match.
+- **Frames + stickers:** pick a frame, a sticker, or one of each; the server draws the sticker, then the frame on top.
+- **Filters:** black & white, negative, high contrast and faded, each previewed on its button. The server applies them with GD (PHP: `imagefilter`); the editor previews them live with CSS filters calibrated to match.
+- **Movable stickers:** stickers (sunglasses, hats, speech bubble…) can be dragged on the picture (mouse or finger) and resized from 25% to 200%. The server draws them at that place and size (PHP: `imagecopyresampled`); frames stay full-size.
 
 ## Stack
 

@@ -11,20 +11,31 @@ const preview = document.getElementById('preview');
 const previewEmpty = document.getElementById('preview-empty');
 const video = document.getElementById('video');
 const uploadPreview = document.getElementById('upload-preview');
-const previewOverlay = document.getElementById('preview-overlay');
+const previewSticker = document.getElementById('preview-sticker');
+const previewFrame = document.getElementById('preview-frame');
 
 const fileInput = document.getElementById('file-input');
 const useWebcam = document.getElementById('use-webcam');
-const filterSelect = document.getElementById('filter');
+const filterList = document.getElementById('filters');
 
-const overlayList = document.getElementById('overlays');
+const frameList = document.getElementById('frames');
+const stickerList = document.getElementById('stickers');
+const stickerControls = document.getElementById('sticker-controls');
+const stickerSize = document.getElementById('sticker-size');
 const capture = document.getElementById('capture');
 const captureMessage = document.getElementById('capture-message');
 
 // The result is 640x480: a bigger upload would only cost transfer time and server CPU
 const MAX_UPLOAD_SIDE = 1280;
+// The server's result size: sticker positions are in these pixels, whatever
+// the size of the preview on screen
+const OUT_W = 640;
+const OUT_H = 480;
 
-let selectedOverlay = null; // { id, filename, label } from /api/overlays
+// { id, filename, label, center_x, center_y } from /api/overlays, or null
+let selectedFrame = null;
+let selectedSticker = null;
+let stickerPos = null;      // { x, y, size } while a sticker is selected
 let source = null;          // what the button would photograph: 'webcam', 'upload' or null
 let webcamRunning = false;
 let uploadedPhoto = null;   // the uploaded file, redrawn as a JPEG data URL
@@ -153,16 +164,42 @@ async function fileToPhoto(file) {
   }
 }
 
-// ---------- filter ----------
+// ---------- rows of choices: filter, frame, sticker ----------
 
-// Preview only: the CSS shows the filter on the video/upload. The photo is
-// sent unfiltered with the filter's name, and the server applies it.
-function showFilter() {
-  preview.dataset.filter = filterSelect.value; // sets data-filter="..." on the box
+// The three rows behave the same: at most one button pressed, nothing at the
+// start, clicking the chosen one again removes it. aria-pressed makes them
+// toggle buttons: screen readers say "pressed", and the CSS uses the same
+// attribute for the highlight.
+// One listener per row, also for buttons added later: closest() finds the
+// button even when the click lands on its picture or label.
+// onChoose(button) gets the chosen button, or null when there is none any more.
+function onChoice(row, onChoose) {
+  row.addEventListener('click', (event) => {
+    const button = event.target.closest('button');
+    if (!button) return; // a click in the gap between buttons
+    const wasChosen = button.getAttribute('aria-pressed') === 'true';
+    const previous = row.querySelector('[aria-pressed="true"]');
+    if (previous) previous.setAttribute('aria-pressed', 'false');
+    if (wasChosen) {
+      onChoose(null);
+      return;
+    }
+    button.setAttribute('aria-pressed', 'true');
+    onChoose(button);
+  });
 }
-filterSelect.addEventListener('change', showFilter);
-// Firefox keeps a form's values on reload: the select may not say "None"
-showFilter();
+
+// Filter: preview only, the CSS shows it on the video/upload. The photo is sent
+// unfiltered with the filter's name, and the server applies it. The box gets
+// the same data-filter as the button: the CSS does the rest.
+onChoice(filterList, (button) => {
+  preview.dataset.filter = button ? button.dataset.filter : 'none';
+});
+
+const overlaysById = new Map(); // id -> overlay, to find a button's overlay
+const overlayOf = (button) => (button ? overlaysById.get(Number(button.dataset.id)) : null);
+onChoice(frameList, (button) => selectFrame(overlayOf(button)));
+onChoice(stickerList, (button) => selectSticker(overlayOf(button)));
 
 // ---------- overlays ----------
 
@@ -174,15 +211,19 @@ async function loadOverlays() {
     showMessage(pageMessage, err.message, 'error');
     return;
   }
-  for (const overlay of overlays) overlayList.append(overlayButton(overlay));
+  for (const overlay of overlays) {
+    overlaysById.set(overlay.id, overlay);
+    // a sticker has a center (the point it is moved by); a frame doesn't
+    const row = overlay.center_x === null ? frameList : stickerList;
+    row.append(overlayButton(overlay));
+  }
 }
 
 function overlayButton(overlay) {
   const button = document.createElement('button');
   button.type = 'button';
-  button.className = 'overlay-option';
-  // aria-pressed makes it a toggle button: screen readers say "pressed",
-  // and the CSS uses the same attribute for the highlight
+  button.className = 'choice';
+  button.dataset.id = overlay.id;
   button.setAttribute('aria-pressed', 'false');
 
   const img = document.createElement('img');
@@ -192,27 +233,106 @@ function overlayButton(overlay) {
   label.textContent = overlay.label;
 
   button.append(img, label);
-  button.addEventListener('click', () => selectOverlay(overlay, button));
   return button;
 }
 
-function selectOverlay(overlay, button) {
-  const previous = overlayList.querySelector('[aria-pressed="true"]');
-  if (previous) previous.setAttribute('aria-pressed', 'false');
-  button.setAttribute('aria-pressed', 'true');
+// Shows an overlay's file in one preview layer, or hides the layer (null)
+function showLayer(img, overlay) {
+  if (overlay) img.src = `/overlays/${overlay.filename}`;
+  img.hidden = overlay === null;
+}
 
-  selectedOverlay = overlay;
-  previewOverlay.src = `/overlays/${overlay.filename}`;
-  previewOverlay.hidden = false;
+function selectFrame(frame) {
+  selectedFrame = frame;
+  showLayer(previewFrame, frame);
   updateCaptureButton();
+}
+
+function selectSticker(sticker) {
+  selectedSticker = sticker;
+  // a sticker starts where its file draws it (its center), at 100%
+  stickerPos = sticker ? { x: sticker.center_x, y: sticker.center_y, size: 100 } : null;
+  stickerSize.value = 100;
+  stickerControls.hidden = sticker === null;
+  preview.classList.toggle('movable', sticker !== null);
+  showLayer(previewSticker, sticker);
+  showSticker();
+  updateCaptureButton();
+}
+
+// ---------- sticker: move and resize ----------
+
+// Preview only, in CSS. The server draws the same thing (compose.js drawSticker):
+// the 640x480 layer scaled by s around the sticker's center c, then moved so c
+// lands on (x, y). transform-origin = c, then translate(target - c) scale(s).
+// Percentages in translate() are of the image's own size, which is the box's:
+// the same numbers work whatever the preview's size on screen.
+function showSticker() {
+  if (!selectedSticker) {
+    previewSticker.style.transform = '';
+    previewSticker.style.transformOrigin = '';
+    return;
+  }
+  const cx = selectedSticker.center_x;
+  const cy = selectedSticker.center_y;
+  const dx = ((stickerPos.x - cx) / OUT_W) * 100;
+  const dy = ((stickerPos.y - cy) / OUT_H) * 100;
+  previewSticker.style.transformOrigin = `${(cx / OUT_W) * 100}% ${(cy / OUT_H) * 100}%`;
+  previewSticker.style.transform = `translate(${dx}%, ${dy}%) scale(${stickerPos.size / 100})`;
+}
+
+// "input" fires continuously while the slider moves ("change" only on release)
+stickerSize.addEventListener('input', () => {
+  stickerPos.size = Number(stickerSize.value);
+  showSticker();
+});
+
+// Drag with Pointer Events: one API for mouse, finger and pen. The drag works
+// anywhere on the picture and moves the sticker by the same amount, so a
+// finger doesn't have to cover the sticker to move it.
+let drag = null; // { pointerId, startX, startY, fromX, fromY } while dragging
+
+preview.addEventListener('pointerdown', (event) => {
+  if (!selectedSticker || drag) return; // nothing to move, or a second finger
+  event.preventDefault(); // no text selection while dragging with the mouse
+  drag = {
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY,
+    fromX: stickerPos.x,
+    fromY: stickerPos.y,
+  };
+  // keep receiving this pointer's moves even when it leaves the box
+  preview.setPointerCapture(event.pointerId);
+});
+
+preview.addEventListener('pointermove', (event) => {
+  if (!drag || event.pointerId !== drag.pointerId) return;
+  const ratio = OUT_W / preview.clientWidth; // screen pixels -> result pixels
+  // clamped like the server checks: the center stays on the picture
+  stickerPos.x = clamp(Math.round(drag.fromX + (event.clientX - drag.startX) * ratio), 0, OUT_W);
+  stickerPos.y = clamp(Math.round(drag.fromY + (event.clientY - drag.startY) * ratio), 0, OUT_H);
+  showSticker();
+});
+
+// pointercancel: e.g. the browser took over the touch, or a call came in
+function endDrag(event) {
+  if (drag && event.pointerId === drag.pointerId) drag = null;
+}
+preview.addEventListener('pointerup', endDrag);
+preview.addEventListener('pointercancel', endDrag);
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
 }
 
 // ---------- capture ----------
 
-// The subject: disabled until an overlay is selected. Also needs a source,
-// and stays disabled while a picture is being sent (one at a time).
+// The subject: disabled until a superposable image (frame or sticker) is
+// selected. Also needs a source, and stays disabled while a picture is being
+// sent (one at a time).
 function updateCaptureButton() {
-  capture.disabled = saving || !(selectedOverlay && source);
+  capture.disabled = saving || !((selectedFrame || selectedSticker) && source);
   if (saving) capture.textContent = 'Saving…';
   else capture.textContent = source === 'upload' ? 'Save the picture' : 'Take the picture';
 }
@@ -226,8 +346,11 @@ async function takePicture() {
   try {
     const image = await api('POST', '/api/images', {
       photo: source === 'upload' ? uploadedPhoto : videoFrame(),
-      overlayId: selectedOverlay.id,
-      filter: filterSelect.value,
+      filter: preview.dataset.filter,
+      frameId: selectedFrame ? selectedFrame.id : null,
+      sticker: selectedSticker
+        ? { id: selectedSticker.id, x: stickerPos.x, y: stickerPos.y, size: stickerPos.size }
+        : null,
     });
     addPicture(image);
     // on a phone "My pictures" is below, maybe off screen: say it worked here too

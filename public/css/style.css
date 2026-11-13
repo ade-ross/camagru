@@ -129,8 +129,7 @@ section + section {
 }
 
 input,
-textarea,
-select {
+textarea {
   font: inherit;
   padding: 0.5rem 0.75rem;
   border: 1px solid var(--border);
@@ -144,8 +143,7 @@ textarea {
 }
 
 input:focus,
-textarea:focus,
-select:focus {
+textarea:focus {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
@@ -244,6 +242,46 @@ button:disabled {
   width: 100%;
   height: 100%;
   margin: 0;
+  /* clicks and touches go to the box itself (editor.js listens there for the
+     sticker drag), and the browser's own "drag this image" can't start */
+  pointer-events: none;
+}
+
+/* A sticker is selected: dragging on the box moves it. touch-action: none
+   tells a phone not to scroll the page when the finger moves here; only
+   while a sticker is selected, so with a frame the page scrolls normally. */
+.preview.movable {
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+}
+.preview.movable:active {
+  cursor: grabbing;
+}
+
+/* under the capture button: source on the left, sticker size on the right.
+   flex-wrap: on a narrow screen the size goes to a second line */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+
+.size-control {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+
+/* the generic input look (padding, border, white box) doesn't suit a slider */
+input[type="range"] {
+  padding: 0;
+  border: none;
+  background: none;
+  accent-color: var(--accent);
 }
 
 /* cover: fill the 4:3 box and cut the excess from the center, exactly like
@@ -261,31 +299,70 @@ button:disabled {
 }
 
 /* Filters (preview only; the server applies the real one, src/lib/compose.js).
-   editor.js sets data-filter on the box; each rule below sets a CSS variable,
-   which the box's children inherit. Only the photo layers USE it, so the
-   overlay is never filtered, like on the server. filter and transform are
-   separate properties: the webcam's mirror is unaffected. */
+   An element with data-filter="..." gets a CSS variable, which its children
+   inherit. Two such elements: the preview box (editor.js sets it) and each
+   filter button. Only the photo layers and the buttons' samples USE the
+   variable, so the overlay is never filtered, like on the server. filter and
+   transform are separate properties: the webcam's mirror is unaffected. */
 .preview-video,
-.preview-upload {
+.preview-upload,
+.filter-sample {
   filter: var(--photo-filter, none);
 }
-.preview[data-filter="grayscale"] { --photo-filter: grayscale(1); } /* GD grayscale: close */
-.preview[data-filter="negative"]  { --photo-filter: invert(1); }    /* GD negate: exact */
-.preview[data-filter="contrast"]  { --photo-filter: contrast(1.5); } /* GD contrast(-22.47): exact */
-.preview[data-filter="faded"]     { --photo-filter: contrast(0.7); } /* GD contrast(16.33): exact */
+[data-filter="grayscale"] { --photo-filter: grayscale(1); } /* GD grayscale: close */
+[data-filter="negative"]  { --photo-filter: invert(1); }    /* GD negate: exact */
+[data-filter="contrast"]  { --photo-filter: contrast(1.5); } /* GD contrast(-22.47): exact */
+[data-filter="faded"]     { --photo-filter: contrast(0.7); } /* GD contrast(16.33): exact */
+
+/* what each filter button shows: a colourful gradient seen through its filter.
+   Pure CSS, so no sample image to ship. */
+.filter-sample {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 4px;
+  background:
+    radial-gradient(circle at 30% 35%, rgba(255, 255, 255, 0.8), transparent 35%),
+    linear-gradient(135deg, #e8a050, #e04a8a 35%, #3aa76d 65%, #3b5bd6);
+}
 
 .source-controls {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: center;
   gap: 0.5rem 1rem;
 }
 
-.file-label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+/* a label that looks like a button: an outlined one, so it doesn't compete
+   with the pink "Take the picture" right above it */
+.upload-button {
+  position: relative; /* the hidden input is placed inside it */
+  padding: 0.5rem 1rem;
+  border: 2px solid var(--accent);
+  border-radius: var(--radius);
+  color: var(--accent-dark);
   font-weight: 600;
+  cursor: pointer;
+}
+.upload-button:hover {
+  background: #fdeef3;
+}
+/* the input inside has the keyboard focus (Tab): show it on the visible label.
+   :focus-visible = focus that should be shown, i.e. not after a mouse click */
+.upload-button:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Hidden for the eyes only: still in the page, so it can be focused with Tab
+   and screen readers find it ("hidden" or display: none would remove it) */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .preview-empty {
@@ -297,14 +374,22 @@ button:disabled {
   color: #cccccc;
 }
 
-.overlay-list {
+/* a hint between a row's title and its buttons: close to both */
+.row-hint {
+  margin: 0 0 0.5rem;
+}
+
+/* the rows of filters, frames and stickers */
+.choice-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr)); /* as many columns as fit */
+  /* as many columns as fit: 6 on a PC (the editor column is at most 624px),
+     so each row (4 filters, 6 frames, 6 stickers) is one line there */
+  grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr));
   gap: 0.5rem;
 }
 
 /* a card, not the pink default button */
-.overlay-option {
+.choice {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -316,16 +401,16 @@ button:disabled {
   border: 2px solid var(--border);
 }
 
-.overlay-option:hover {
+.choice:hover {
   background: var(--bg);
 }
 
-.overlay-option[aria-pressed="true"] {
+.choice[aria-pressed="true"] {
   border-color: var(--accent);
   background: #fdeef3;
 }
 
-.overlay-option img {
+.choice img {
   width: 100%;
   aspect-ratio: 4 / 3;
   background: #9a9a9a; /* the overlays are mostly transparent: grey makes them visible */

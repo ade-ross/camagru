@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const imagesModel = require('../models/images');
 const overlaysModel = require('../models/overlays');
-const { composeImage, isFilter, ImageError, UPLOADS_DIR } = require('../lib/compose');
+const { composeImage, isFilter, isValidPosition, ImageError, UPLOADS_DIR } = require('../lib/compose');
 const { dataUrlToBuffer } = require('../lib/imageinfo');
 const { requireAuth } = require('../middleware/session');
 const { sendJson, sendFile } = require('../lib/http');
@@ -32,14 +32,22 @@ async function listMine(req, res) {
   }
 }
 
-// body: { photo: "data:image/png;base64,....", overlayId: 3, filter: "grayscale" }
-// filter is optional: missing means "none"
+// body: { photo: "data:image/png;base64,....", filter: "grayscale",
+//         frameId: 1, sticker: { id: 8, x: 320, y: 240, size: 100 } }
+// A frame, a sticker, or both (the subject: at least one superposable image).
+// filter is optional: missing means "none".
 async function create(req, res) {
   if (!requireAuth(req, res)) return;
 
-  const { photo, overlayId, filter = 'none' } = req.body;
-  if (!Number.isInteger(overlayId)) {
-    return sendJson(res, 400, { error: 'Choose an overlay first' });
+  const { photo, filter = 'none', frameId = null, sticker = null } = req.body;
+  if (frameId === null && sticker === null) {
+    return sendJson(res, 400, { error: 'Choose a frame or a sticker first' });
+  }
+  if (frameId !== null && !Number.isInteger(frameId)) {
+    return sendJson(res, 400, { error: 'Invalid frame' });
+  }
+  if (sticker !== null && !(isValidPosition(sticker) && Number.isInteger(sticker.id))) {
+    return sendJson(res, 400, { error: 'Invalid sticker' });
   }
   if (!isFilter(filter)) {
     return sendJson(res, 400, { error: 'Unknown filter' });
@@ -50,11 +58,19 @@ async function create(req, res) {
   }
 
   try {
-    const overlay = await overlaysModel.findById(overlayId);
-    if (!overlay) {
-      return sendJson(res, 404, { error: 'Unknown overlay' });
+    let frame = null;
+    if (frameId !== null) {
+      frame = await overlaysModel.findFrame(frameId);
+      if (!frame) return sendJson(res, 404, { error: 'Unknown frame' });
     }
-    const filename = await composeImage(buffer, overlay.filename, filter);
+    let placed = null; // the sticker's DB row + where the user put it
+    if (sticker !== null) {
+      const overlay = await overlaysModel.findSticker(sticker.id);
+      if (!overlay) return sendJson(res, 404, { error: 'Unknown sticker' });
+      // only the checked numbers are passed on, not the client's whole object
+      placed = { overlay, x: sticker.x, y: sticker.y, size: sticker.size };
+    }
+    const filename = await composeImage(buffer, filter, frame, placed);
 
     let image;
     try {

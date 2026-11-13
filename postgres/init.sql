@@ -31,7 +31,12 @@ CREATE TABLE images (
 CREATE TABLE overlays (              -- the predefined superposable images
   id          SERIAL PRIMARY KEY,
   filename    VARCHAR(255) NOT NULL,
-  label       VARCHAR(100)
+  label       VARCHAR(100),
+  -- Stickers only: the point (in the 640x480 file) the user moves and resizes
+  -- them by. NULL = a frame, always drawn full-size.
+  center_x    INTEGER,
+  center_y    INTEGER,
+  CHECK ((center_x IS NULL) = (center_y IS NULL)) -- both set or neither
 );
 
 CREATE TABLE likes (
@@ -61,8 +66,11 @@ CREATE UNIQUE INDEX users_username_lower_idx ON users (LOWER(username));
 
 INSERT INTO overlays (filename, label) VALUES
   ('frame-gold.png', 'Gold frame'), ('frame-polaroid.png', 'Polaroid'),
-  ('film-strip.png', 'Film strip'), ('vignette.png', 'Vignette'),
-  ('stars.png', 'Stars'), ('hearts.png', 'Hearts'), ('confetti.png', 'Confetti'),
-  ('sunglasses.png', 'Sunglasses'), ('cat-face.png', 'Cat face'),
-  ('party-hat.png', 'Party hat'), ('crown.png', 'Crown'),
-  ('mustache.png', 'Mustache'), ('speech-bubble.png', 'Speech bubble');
+  ('vignette.png', 'Vignette'),
+  ('stars.png', 'Stars'), ('hearts.png', 'Hearts'), ('confetti.png', 'Confetti');
+
+-- centers measured on each file's visible pixels
+INSERT INTO overlays (filename, label, center_x, center_y) VALUES
+  ('sunglasses.png', 'Sunglasses', 320, 235), ('cat-face.png', 'Cat face', 320, 186),
+  ('party-hat.png', 'Party hat', 320, 78), ('crown.png', 'Crown', 320, 90),
+  ('mustache.png', 'Mustache', 320, 318), ('speech-bubble.png', 'Speech bubble', 472, 108);
