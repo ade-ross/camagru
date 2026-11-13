@@ -25,7 +25,8 @@
       <section class="editor-main">
         <!-- 4:3 like the server's 640x480 result. The overlay is laid on top
              with CSS for the preview only: the real compositing is server-side -->
-        <div class="preview">
+        <!-- data-filter: the chosen filter, read by the CSS (see style.css) -->
+        <div id="preview" class="preview" data-filter="none">
           <p id="preview-empty" class="preview-empty">Starting the webcam…</p>
           <!-- muted + playsinline: browsers only autoplay muted video, and iPhones
                would otherwise open it fullscreen. Later elements are drawn on
@@ -46,6 +47,17 @@
             <input id="file-input" type="file" accept="image/png,image/jpeg">
           </label>
           <button id="use-webcam" class="link-button" type="button" hidden>Back to the webcam</button>
+          <!-- the values are the server's filter names (src/lib/compose.js) -->
+          <label class="file-label">
+            Filter
+            <select id="filter">
+              <option value="none">None</option>
+              <option value="grayscale">Black &amp; white</option>
+              <option value="negative">Negative</option>
+              <option value="contrast">High contrast</option>
+              <option value="faded">Faded</option>
+            </select>
+          </label>
         </div>
 
         <h2>Choose an overlay</h2>

@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const imagesModel = require('../models/images');
 const overlaysModel = require('../models/overlays');
-const { composeImage, ImageError, UPLOADS_DIR } = require('../lib/compose');
+const { composeImage, isFilter, ImageError, UPLOADS_DIR } = require('../lib/compose');
 const { dataUrlToBuffer } = require('../lib/imageinfo');
 const { requireAuth } = require('../middleware/session');
 const { sendJson, sendFile } = require('../lib/http');
@@ -32,13 +32,17 @@ async function listMine(req, res) {
   }
 }
 
-// body: { photo: "data:image/png;base64,....", overlayId: 3 }
+// body: { photo: "data:image/png;base64,....", overlayId: 3, filter: "grayscale" }
+// filter is optional: missing means "none"
 async function create(req, res) {
   if (!requireAuth(req, res)) return;
 
-  const { photo, overlayId } = req.body;
+  const { photo, overlayId, filter = 'none' } = req.body;
   if (!Number.isInteger(overlayId)) {
     return sendJson(res, 400, { error: 'Choose an overlay first' });
+  }
+  if (!isFilter(filter)) {
+    return sendJson(res, 400, { error: 'Unknown filter' });
   }
   const buffer = dataUrlToBuffer(photo);
   if (!buffer || buffer.length === 0 || buffer.length > MAX_PHOTO_BYTES) {
@@ -50,7 +54,7 @@ async function create(req, res) {
     if (!overlay) {
       return sendJson(res, 404, { error: 'Unknown overlay' });
     }
-    const filename = await composeImage(buffer, overlay.filename);
+    const filename = await composeImage(buffer, overlay.filename, filter);
 
     let image;
     try {

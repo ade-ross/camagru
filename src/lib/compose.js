@@ -25,6 +25,26 @@ const ROOT = path.join(__dirname, '..', '..');
 const OVERLAYS_DIR = path.join(ROOT, 'public', 'overlays');
 const UPLOADS_DIR = path.join(ROOT, 'uploads');
 
+// Filters the user can choose (PHP: imagefilter() with IMG_FILTER_GRAYSCALE,
+// IMG_FILTER_NEGATE, IMG_FILTER_CONTRAST). Each one changes the photo's pixels
+// in place. The editor previews them with CSS (style.css, "filters"); the
+// values were chosen so the preview matches (see decisions.md).
+const FILTERS = {
+  none: () => {},
+  grayscale: (img) => img.grayscale(),
+  negative: (img) => img.negate(),
+  // GD's contrast factor is ((100 - n) / 100)^2, so -22.47 gives 1.5 and
+  // 16.33 gives 0.7: exactly CSS contrast(1.5) and contrast(0.7)
+  contrast: (img) => img.contrast(-22.47),
+  faded: (img) => img.contrast(16.33),
+};
+
+// Object.hasOwn and not FILTERS[name]: every object also inherits keys like
+// "constructor" or "toString", and FILTERS["constructor"] would be found too
+function isFilter(name) {
+  return typeof name === 'string' && Object.hasOwn(FILTERS, name);
+}
+
 // "The user sent a bad image" (-> 400), as opposed to a server fault (-> 500)
 class ImageError extends Error {
   constructor(message, options) {
@@ -53,8 +73,9 @@ async function decodePhoto(buffer, type) {
 
 // photoBuffer:     raw PNG/JPEG bytes from the user
 // overlayFilename: comes from the overlays table, NEVER from the client
+// filter:          a FILTERS key, already checked with isFilter()
 // Returns the name of the new file inside UPLOADS_DIR.
-async function composeImage(photoBuffer, overlayFilename) {
+async function composeImage(photoBuffer, overlayFilename, filter) {
   // Check type and dimensions from the headers BEFORE decoding anything
   const info = inspect(photoBuffer);
   if (info.error) throw new ImageError(info.error);
@@ -82,10 +103,14 @@ async function composeImage(photoBuffer, overlayFilename) {
     const srcY = Math.floor((photo.height - srcH) / 2);
     photo.copyResampled(out, 0, 0, srcX, srcY, OUT_W, OUT_H, srcW, srcH);
 
-    // 2. Superpose the overlay: its transparent pixels leave the photo visible
+    // 2. The filter, BEFORE the overlay: it changes the photo only, the
+    //    overlay keeps its own colors (like the preview)
+    FILTERS[filter](out);
+
+    // 3. Superpose the overlay: its transparent pixels leave the photo visible
     overlay.copy(out, 0, 0, 0, 0, OUT_W, OUT_H);
 
-    // 3. Encode a brand new PNG under a random name. Only decoded pixels
+    // 4. Encode a brand new PNG under a random name. Only decoded pixels
     //    survive, so anything hidden in the uploaded file is gone.
     const filename = crypto.randomBytes(16).toString('hex') + '.png';
     const dest = path.join(UPLOADS_DIR, filename);
@@ -105,4 +130,4 @@ async function composeImage(photoBuffer, overlayFilename) {
   }
 }
 
-module.exports = { composeImage, ImageError, UPLOADS_DIR };
+module.exports = { composeImage, isFilter, ImageError, UPLOADS_DIR };

@@ -129,7 +129,8 @@ section + section {
 }
 
 input,
-textarea {
+textarea,
+select {
   font: inherit;
   padding: 0.5rem 0.75rem;
   border: 1px solid var(--border);
@@ -143,7 +144,8 @@ textarea {
 }
 
 input:focus,
-textarea:focus {
+textarea:focus,
+select:focus {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
@@ -257,6 +259,20 @@ button:disabled {
 .preview-upload {
   object-fit: cover;
 }
+
+/* Filters (preview only; the server applies the real one, src/lib/compose.js).
+   editor.js sets data-filter on the box; each rule below sets a CSS variable,
+   which the box's children inherit. Only the photo layers USE it, so the
+   overlay is never filtered, like on the server. filter and transform are
+   separate properties: the webcam's mirror is unaffected. */
+.preview-video,
+.preview-upload {
+  filter: var(--photo-filter, none);
+}
+.preview[data-filter="grayscale"] { --photo-filter: grayscale(1); } /* GD grayscale: close */
+.preview[data-filter="negative"]  { --photo-filter: invert(1); }    /* GD negate: exact */
+.preview[data-filter="contrast"]  { --photo-filter: contrast(1.5); } /* GD contrast(-22.47): exact */
+.preview[data-filter="faded"]     { --photo-filter: contrast(0.7); } /* GD contrast(16.33): exact */
 
 .source-controls {
   display: flex;

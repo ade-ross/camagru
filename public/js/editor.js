@@ -7,6 +7,7 @@ const editor = document.getElementById('editor');
 const needLogin = document.getElementById('need-login');
 const pageMessage = document.getElementById('page-message');
 
+const preview = document.getElementById('preview');
 const previewEmpty = document.getElementById('preview-empty');
 const video = document.getElementById('video');
 const uploadPreview = document.getElementById('upload-preview');
@@ -14,6 +15,7 @@ const previewOverlay = document.getElementById('preview-overlay');
 
 const fileInput = document.getElementById('file-input');
 const useWebcam = document.getElementById('use-webcam');
+const filterSelect = document.getElementById('filter');
 
 const overlayList = document.getElementById('overlays');
 const capture = document.getElementById('capture');
@@ -151,6 +153,17 @@ async function fileToPhoto(file) {
   }
 }
 
+// ---------- filter ----------
+
+// Preview only: the CSS shows the filter on the video/upload. The photo is
+// sent unfiltered with the filter's name, and the server applies it.
+function showFilter() {
+  preview.dataset.filter = filterSelect.value; // sets data-filter="..." on the box
+}
+filterSelect.addEventListener('change', showFilter);
+// Firefox keeps a form's values on reload: the select may not say "None"
+showFilter();
+
 // ---------- overlays ----------
 
 async function loadOverlays() {
@@ -214,6 +227,7 @@ async function takePicture() {
     const image = await api('POST', '/api/images', {
       photo: source === 'upload' ? uploadedPhoto : videoFrame(),
       overlayId: selectedOverlay.id,
+      filter: filterSelect.value,
     });
     addPicture(image);
     // on a phone "My pictures" is below, maybe off screen: say it worked here too
