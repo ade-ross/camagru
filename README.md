@@ -48,7 +48,7 @@ The webcam only works on `localhost` or over https, because browsers refuse came
 - **Account deletion:** in the settings, with your password. It removes your account, your pictures (files included), and your likes and comments.
 - **Frames + stickers:** pick a frame, a sticker, or one of each; the server draws the sticker, then the frame on top.
 - **Filters:** black & white, negative, high contrast and faded, each previewed on its button. The server applies them with GD (PHP: `imagefilter`); the editor previews them live with CSS filters calibrated to match.
-- **Movable stickers:** stickers (sunglasses, hats, speech bubble…) can be dragged on the picture (mouse or finger) and resized from 25% to 200%. The server draws them at that place and size (PHP: `imagecopyresampled`); frames stay full-size.
+- **Movable stickers:** stickers (sunglasses, hats, speech bubble…) can be dragged on the picture (mouse or finger) and resized from 25% to 200% (slider, mouse wheel or two-finger pinch). The server draws them at that place and size (PHP: `imagecopyresampled`); frames stay full-size.
 
 ## Stack
 
@@ -66,7 +66,8 @@ The subject only allows functions with an equivalent in the PHP standard library
 - **Passwords** are hashed with scrypt and a random salt.
 - **SQL injection:** every query is parameterized (`$1` placeholders).
 - **HTML/JS injection:** user content is only ever displayed through `textContent`, never `innerHTML`.
-- **CSRF:** the session cookie is `SameSite=Strict` and `HttpOnly`, and request bodies must be JSON, which a cross-site form can't send.
+- **CSRF:** the session cookie is `SameSite=Strict` and `HttpOnly`, and every request that changes something must say it is JSON (even with no body), which a cross-site form can't do.
+- **Clickjacking:** pages are sent with `X-Frame-Options: DENY`, so no other site can show them inside a frame.
 - **Uploads:** the real file type and dimensions are checked before decoding, the result is re-encoded as a new PNG, and its file name is random.
 - **Access control:** identity always comes from the session, and ownership is checked inside the SQL.
 - **Credentials** live only in `.env`, which is never committed.

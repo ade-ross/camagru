@@ -37,14 +37,16 @@ function parseBody(req, limit = 1e6, drainExtra = 10e6) {
 
     req.on('end', () => {
       if (tooBig) return; // already rejected
-      if (size === 0) return resolve({});
 
-      // Only accept JSON that says it is JSON. A cross-site HTML form cannot
-      // send this content type, so this is a second line of defense against CSRF
-      // on top of the SameSite cookie.
+      // Only accept requests that say they are JSON, EVEN WITH AN EMPTY BODY
+      // (logout, like). A cross-site HTML form cannot send this content type,
+      // so it cannot trigger any of our POST/PATCH/PUT/DELETE routes (CSRF).
+      // This is on top of the SameSite cookie, which old browsers (Chrome < 51,
+      // Firefox < 60) ignore.
       if (!/^application\/json\b/i.test(req.headers['content-type'] || '')) {
         return fail(415, 'Content-Type must be application/json');
       }
+      if (size === 0) return resolve({});
 
       let body;
       try {

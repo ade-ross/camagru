@@ -6,11 +6,11 @@
 // (0 when the server could not be reached at all).
 export async function api(method, url, body) {
   const options = { method, headers: {} };
-  if (body !== undefined) {
-    // the server only accepts JSON bodies (415 otherwise)
-    options.headers['Content-Type'] = 'application/json';
-    options.body = JSON.stringify(body);
-  }
+  // Every request that changes something says "JSON", even with no body (logout,
+  // like): the server refuses those without it (415). A form on another site
+  // can't send this header, so it can't make the browser do these requests (CSRF).
+  if (method !== 'GET') options.headers['Content-Type'] = 'application/json';
+  if (body !== undefined) options.body = JSON.stringify(body);
 
   let res;
   try {

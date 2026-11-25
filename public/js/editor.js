@@ -281,46 +281,100 @@ function showSticker() {
   previewSticker.style.transform = `translate(${dx}%, ${dy}%) scale(${stickerPos.size / 100})`;
 }
 
+// Three ways to resize: the slider, the mouse wheel and a two-finger pinch.
+// All go through here. The size range is the slider's min/max in the HTML
+// (the same as the server accepts). Not rounded here: a wheel or a pinch
+// changes it by small steps that rounding would swallow (99.6 -> 100 again
+// and again). It is rounded when the picture is sent.
+function setStickerSize(value) {
+  stickerPos.size = clamp(value, Number(stickerSize.min), Number(stickerSize.max));
+  stickerSize.value = stickerPos.size; // the slider follows (it shows the nearest step)
+  showSticker();
+}
+
 // "input" fires continuously while the slider moves ("change" only on release)
 stickerSize.addEventListener('input', () => {
-  stickerPos.size = Number(stickerSize.value);
-  showSticker();
+  setStickerSize(Number(stickerSize.value));
 });
 
-// Drag with Pointer Events: one API for mouse, finger and pen. The drag works
-// anywhere on the picture and moves the sticker by the same amount, so a
-// finger doesn't have to cover the sticker to move it.
-let drag = null; // { pointerId, startX, startY, fromX, fromY } while dragging
+// Mouse wheel (or trackpad scroll) over the picture resizes the sticker, and
+// the page doesn't scroll meanwhile. Without a sticker the page scrolls as usual.
+// passive: false = we promise the browser we may call preventDefault(); it
+// then waits for us before scrolling.
+preview.addEventListener('wheel', (event) => {
+  if (!selectedSticker) return;
+  event.preventDefault();
+  // deltaY: how far the wheel turned, usually in pixels (one notch ~100), but
+  // in lines for some mouse setups in Firefox: ~40px per line. Wheel up
+  // (negative) = bigger; one notch = 5%, a trackpad gives many small steps.
+  const pixels = event.deltaMode === WheelEvent.DOM_DELTA_LINE ? event.deltaY * 40 : event.deltaY;
+  setStickerSize(stickerPos.size - pixels / 20);
+}, { passive: false });
+
+// Drag and pinch with Pointer Events: one API for mouse, finger and pen, and
+// each finger is a separate pointer with its own pointerId.
+//  - one pointer down: drag. It works anywhere on the picture and moves the
+//    sticker by the same amount, so a finger doesn't have to cover it.
+//  - two fingers down: pinch. Fingers twice as far apart = sticker twice as big.
+const pointers = new Map(); // pointerId -> { x, y }: the pointers down on the picture
+let drag = null;  // { startX, startY, fromX, fromY } while one pointer drags
+let pinch = null; // { startDistance, startSize } while two fingers pinch
+
+function startDrag(point) {
+  drag = { startX: point.x, startY: point.y, fromX: stickerPos.x, fromY: stickerPos.y };
+}
+
+// distance between the two fingers, in screen pixels (at least 1: we divide by it)
+function fingerDistance() {
+  const [a, b] = pointers.values();
+  return Math.max(1, Math.hypot(a.x - b.x, a.y - b.y));
+}
 
 preview.addEventListener('pointerdown', (event) => {
-  if (!selectedSticker || drag) return; // nothing to move, or a second finger
+  if (!selectedSticker || pointers.size >= 2) return; // nothing to move, or a third finger
   event.preventDefault(); // no text selection while dragging with the mouse
-  drag = {
-    pointerId: event.pointerId,
-    startX: event.clientX,
-    startY: event.clientY,
-    fromX: stickerPos.x,
-    fromY: stickerPos.y,
-  };
   // keep receiving this pointer's moves even when it leaves the box
   preview.setPointerCapture(event.pointerId);
+  pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+  if (pointers.size === 1) {
+    startDrag(pointers.get(event.pointerId));
+  } else {
+    // a second finger: the drag stops, the pinch starts from the current size
+    drag = null;
+    pinch = { startDistance: fingerDistance(), startSize: stickerPos.size };
+  }
 });
 
 preview.addEventListener('pointermove', (event) => {
-  if (!drag || event.pointerId !== drag.pointerId) return;
-  const ratio = OUT_W / preview.clientWidth; // screen pixels -> result pixels
-  // clamped like the server checks: the center stays on the picture
-  stickerPos.x = clamp(Math.round(drag.fromX + (event.clientX - drag.startX) * ratio), 0, OUT_W);
-  stickerPos.y = clamp(Math.round(drag.fromY + (event.clientY - drag.startY) * ratio), 0, OUT_H);
-  showSticker();
+  const point = pointers.get(event.pointerId);
+  // not a pointer we follow (e.g. the mouse just passing over), or the
+  // sticker was removed meanwhile
+  if (!point || !selectedSticker) return;
+  point.x = event.clientX;
+  point.y = event.clientY;
+
+  if (pinch) {
+    setStickerSize(pinch.startSize * (fingerDistance() / pinch.startDistance));
+  } else if (drag) {
+    const ratio = OUT_W / preview.clientWidth; // screen pixels -> result pixels
+    // clamped like the server checks: the center stays on the picture
+    stickerPos.x = clamp(Math.round(drag.fromX + (point.x - drag.startX) * ratio), 0, OUT_W);
+    stickerPos.y = clamp(Math.round(drag.fromY + (point.y - drag.startY) * ratio), 0, OUT_H);
+    showSticker();
+  }
 });
 
 // pointercancel: e.g. the browser took over the touch, or a call came in
-function endDrag(event) {
-  if (drag && event.pointerId === drag.pointerId) drag = null;
+function endPointer(event) {
+  if (!pointers.delete(event.pointerId)) return; // not one we follow
+  drag = null;
+  pinch = null;
+  // one finger lifted after a pinch, the other still down: it drags from where
+  // it is now (starting from its old start point would make the sticker jump)
+  if (pointers.size === 1) startDrag(pointers.values().next().value);
 }
-preview.addEventListener('pointerup', endDrag);
-preview.addEventListener('pointercancel', endDrag);
+preview.addEventListener('pointerup', endPointer);
+preview.addEventListener('pointercancel', endPointer);
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
@@ -349,7 +403,8 @@ async function takePicture() {
       filter: preview.dataset.filter,
       frameId: selectedFrame ? selectedFrame.id : null,
       sticker: selectedSticker
-        ? { id: selectedSticker.id, x: stickerPos.x, y: stickerPos.y, size: stickerPos.size }
+        // the server wants whole numbers (see setStickerSize)
+        ? { id: selectedSticker.id, x: stickerPos.x, y: stickerPos.y, size: Math.round(stickerPos.size) }
         : null,
     });
     addPicture(image);

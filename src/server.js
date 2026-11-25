@@ -53,6 +53,9 @@ async function serveStatic(req, res) {
   const sent = type && await sendFile(res, filePath, {
     'Content-Type': type,
     'Cache-Control': 'no-cache', // always revalidate: you'll see your latest JS/CSS
+    // Never show our pages inside another site's <iframe>: an invisible frame
+    // over a fake button could trick a click on ours (clickjacking)
+    'X-Frame-Options': 'DENY',
   });
   if (!sent) sendJson(res, 404, { error: 'Not found' });
 }
