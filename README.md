@@ -2,6 +2,12 @@
 
 A photo-sharing web app, built for the 42 school *Camagru* project. Users take a webcam picture or upload one, choose an overlay with transparency, and the **server** composites the two. The results go to a public gallery with likes and comments.
 
+![Gallery](screenshots/gallery.png)
+
+| Editor | Picture page |
+|---|---|
+| ![Editor with a sticker, frame and filter](screenshots/editor.png) | ![Picture page with comments](screenshots/picture.png) |
+
 ## Run it
 
 You need Docker with Docker Compose.
